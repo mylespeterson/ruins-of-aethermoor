@@ -5,18 +5,21 @@ Inspired by *Castle of the Winds* (tile dungeon crawling, fog of war) and *Final
 
 ---
 
-## ▶️ How to Run
+## ▶️ How to Play (No Install Required)
 
-Because the game uses ES modules (`<script type="module">`), **you must serve it from a local web server** — opening `index.html` directly as a `file://` URL will not work in most browsers.
+### 🌐 Option 1 — Play in your browser (easiest)
 
-Pick **any one** of these three zero-setup methods:
+**https://mylespeterson.github.io/ruins-of-aethermoor/**
 
-### Option 1 — Node.js (included helper script)
-```bash
-node serve.js
-```
-Then open **http://localhost:8000** in your browser.  
-Requires Node.js 14+. No npm install needed.
+The game is automatically deployed to GitHub Pages on every push to `main`. No download, no install — just open the link and play.
+
+> **One-time repo setup:** In your GitHub repository go to **Settings → Pages → Source** and select **GitHub Actions**. After that, every push to `main` triggers a fresh deploy automatically.
+
+---
+
+### Running locally
+
+Because the game uses ES modules (`<script type="module">`), opening `index.html` directly as a `file://` URL will not work. Use any one of the options below if you want a local copy:
 
 ### Option 2 — Python (built into macOS / Linux)
 ```bash
@@ -24,7 +27,14 @@ python3 -m http.server 8000
 ```
 Then open **http://localhost:8000** in your browser.
 
-### Option 3 — VS Code Live Server extension
+### Option 3 — Node.js (included helper script)
+```bash
+node serve.js
+```
+Then open **http://localhost:8000** in your browser.  
+Requires Node.js 14+. No npm install needed.
+
+### Option 4 — VS Code Live Server extension
 1. Install the **Live Server** extension by Ritwick Dey.
 2. Right-click `index.html` → **Open with Live Server**.
 
@@ -151,8 +161,11 @@ Example: *Mithril Flamebrand* (Mithril + Fire Ruby → sword)
 
 ```
 ruins-of-aethermoor/
-├── index.html          ← open this (via a local server)
+├── index.html          ← entry point (served via GitHub Pages or a local server)
 ├── serve.js            ← zero-dep Node.js dev server
+├── .github/
+│   └── workflows/
+│       └── deploy.yml  ← auto-deploys to GitHub Pages on push to main
 ├── css/style.css
 └── src/
     ├── main.js
