@@ -142,5 +142,165 @@ export const SKILLS = {
   voodoo_doll: { id:'voodoo_doll', name:'Voodoo Doll', mpCost:20, cooldown:5, levelRequired:12, target:'single_enemy', type:'debuff', effect:'voodoo', duration:4, description:'Mirror damage to linked enemy.' },
   spirit_walk: { id:'spirit_walk', name:'Spirit Walk', mpCost:20, cooldown:5, levelRequired:16, target:'self', type:'buff', effect:'spirit_walk', duration:2, description:'Become untargetable for 2 turns.' },
   mass_hex: { id:'mass_hex', name:'Mass Hex', mpCost:30, cooldown:5, levelRequired:20, target:'all_enemies', type:'debuff', effect:'mass_hex', value:0.2, duration:3, description:'Hex all enemies.' },
-  ancestral_wrath: { id:'ancestral_wrath', name:'Ancestral Wrath', mpCost:55, cooldown:8, levelRequired:25, target:'all_enemies', type:'magic', element:'dark', power:2.2, description:'Summon ancestors to destroy foes.' }
+  ancestral_wrath: { id:'ancestral_wrath', name:'Ancestral Wrath', mpCost:55, cooldown:8, levelRequired:25, target:'all_enemies', type:'magic', element:'dark', power:2.2, description:'Summon ancestors to destroy foes.' },
+
+  // === WARRIOR (new) ===
+  battle_stance: { id:'battle_stance', name:'Battle Stance', mpCost:5, cooldown:3, levelRequired:2, target:'self', type:'buff', effect:'def_up', value:0.15, duration:3, description:'Adopt a defensive stance, +15% DEF for 3 turns.' },
+  whirling_strike: { id:'whirling_strike', name:'Whirling Strike', mpCost:8, cooldown:2, levelRequired:4, target:'all_enemies', type:'physical', power:0.7, description:'Spinning strike hitting all nearby enemies.' },
+  provoke: { id:'provoke', name:'Provoke', mpCost:6, cooldown:3, levelRequired:6, target:'all_enemies', type:'debuff', effect:'taunt', duration:2, description:'Draw all enemy attacks to you for 2 turns.' },
+  shield_bash: { id:'shield_bash', name:'Shield Bash', mpCost:10, cooldown:3, levelRequired:10, target:'single', type:'physical', power:1.0, stunChance:0.5, description:'Bash with shield, 50% chance to stun.' },
+  armor_crush: { id:'armor_crush', name:'Armor Crush', mpCost:12, cooldown:4, levelRequired:13, target:'single_enemy', type:'debuff', effect:'def_down', value:0.3, duration:3, description:'Crush enemy armor, reducing DEF by 30%.' },
+  relentless_assault: { id:'relentless_assault', name:'Relentless Assault', mpCost:20, cooldown:4, levelRequired:19, target:'single', hits:2, type:'physical', power:0.9, description:'Strike twice in one turn.' },
+  fortress_stance: { id:'fortress_stance', name:'Fortress Stance', mpCost:25, cooldown:6, levelRequired:22, target:'self', type:'buff', effect:'fortress', value:0.5, duration:3, description:'Become immovable, take 50% less damage for 3 turns.' },
+  berserker_oath: { id:'berserker_oath', name:'Berserker Oath', mpCost:35, cooldown:8, levelRequired:30, target:'self', type:'buff', effect:'berserker_oath', atkMult:3.0, defMult:0, duration:3, description:'Triple ATK but DEF reduced to 0 for 3 turns.' },
+
+  // === MAGE (new) ===
+  mana_tap: { id:'mana_tap', name:'Mana Tap', mpCost:0, cooldown:4, levelRequired:2, target:'self', type:'special', effect:'restore_mp', value:15, description:'Draw ether energy to restore 15 MP.' },
+  wind_slash: { id:'wind_slash', name:'Wind Slash', mpCost:5, cooldown:0, levelRequired:4, target:'single', type:'magic', element:'wind', power:1.0, description:'Razor wind slice.' },
+  spell_focus: { id:'spell_focus', name:'Spell Focus', mpCost:8, cooldown:4, levelRequired:6, target:'self', type:'buff', effect:'spell_focus', value:2.0, duration:1, description:'Next spell deals double damage.' },
+  chain_lightning: { id:'chain_lightning', name:'Chain Lightning', mpCost:22, cooldown:3, levelRequired:10, target:'random_enemies', hits:3, type:'magic', element:'lightning', power:0.8, description:'Lightning bounces between 3 enemies.' },
+  frost_nova: { id:'frost_nova', name:'Frost Nova', mpCost:25, cooldown:4, levelRequired:13, target:'all_enemies', type:'magic', element:'ice', power:0.9, statusEffect:'freeze', statusChance:0.5, description:'Nova of frost, 50% freeze chance each enemy.' },
+  flare: { id:'flare', name:'Flare', mpCost:40, cooldown:5, levelRequired:19, target:'single', type:'magic', power:2.8, description:'Massive non-elemental magic blast.' },
+  time_stop: { id:'time_stop', name:'Time Stop', mpCost:45, cooldown:7, levelRequired:22, target:'all_enemies', type:'debuff', effect:'stop', duration:1, description:'Freeze time — skip all enemy actions for 1 turn.' },
+  ultima: { id:'ultima', name:'Ultima', mpCost:70, cooldown:9, levelRequired:30, target:'all_enemies', type:'magic', power:3.5, description:'Ultimate non-elemental magic obliterating all enemies.' },
+
+  // === RANGER (new) ===
+  eagle_eye: { id:'eagle_eye', name:'Eagle Eye', mpCost:4, cooldown:3, levelRequired:2, target:'self', type:'buff', effect:'accuracy_up', value:1.0, duration:1, description:'Perfect aim — next attack never misses.' },
+  caltrops: { id:'caltrops', name:'Caltrops', mpCost:8, cooldown:3, levelRequired:4, target:'all_enemies', type:'debuff', effect:'slow', value:0.3, duration:3, description:'Scatter caltrops slowing all enemies 30%.' },
+  aimed_shot: { id:'aimed_shot', name:'Aimed Shot', mpCost:10, cooldown:2, levelRequired:6, target:'single', type:'physical', power:1.6, description:'Carefully aimed, high-accuracy single shot.' },
+  leg_shot: { id:'leg_shot', name:'Leg Shot', mpCost:12, cooldown:3, levelRequired:10, target:'single_enemy', type:'physical', power:0.8, statusEffect:'slow', description:'Arrow to the leg, slowing the target.' },
+  barrage: { id:'barrage', name:'Barrage', mpCost:18, cooldown:3, levelRequired:13, target:'random_enemies', hits:4, type:'physical', power:0.65, description:'Fire 4 quick shots at random enemies.' },
+  concussive_shot: { id:'concussive_shot', name:'Concussive Shot', mpCost:20, cooldown:4, levelRequired:19, target:'single', type:'physical', power:1.2, stunChance:0.6, description:'Heavy shot with 60% chance to stun.' },
+  fire_arrow_rain: { id:'fire_arrow_rain', name:'Fire Arrow Rain', mpCost:30, cooldown:5, levelRequired:22, target:'all_enemies', type:'physical', element:'fire', power:1.3, description:'Rain of flaming arrows scorching all enemies.' },
+  death_from_above: { id:'death_from_above', name:'Death from Above', mpCost:50, cooldown:8, levelRequired:30, target:'single', type:'physical', power:4.0, ignoreDefense:true, description:'Ultimate shadow arrow strike from above.' },
+
+  // === CLERIC (new) ===
+  minor_heal: { id:'minor_heal', name:'Minor Heal', mpCost:4, cooldown:0, levelRequired:2, target:'single_ally', type:'heal', power:0.8, description:'Small but MP-efficient heal.' },
+  bless: { id:'bless', name:'Bless', mpCost:8, cooldown:3, levelRequired:4, target:'single_ally', type:'buff', effect:'atk_up', value:0.15, duration:3, description:'Bless an ally, boosting ATK 15%.' },
+  sanctuary: { id:'sanctuary', name:'Sanctuary', mpCost:18, cooldown:5, levelRequired:6, target:'single_ally', type:'buff', effect:'invincible', duration:1, description:'Protect one ally from all attacks for 1 turn.' },
+  group_cure: { id:'group_cure', name:'Group Cure', mpCost:20, cooldown:4, levelRequired:10, target:'all_allies', type:'special', effect:'cleanse_all', description:'Remove all status effects from the party.' },
+  barrier: { id:'barrier', name:'Barrier', mpCost:22, cooldown:5, levelRequired:13, target:'single_ally', type:'buff', effect:'negate_one_hit', duration:3, description:'Magical barrier blocks the next hit completely.' },
+  holy_word: { id:'holy_word', name:'Holy Word', mpCost:28, cooldown:4, levelRequired:19, target:'all_enemies', type:'magic', element:'light', power:2.0, description:'Word of divine power, devastating undead and demons.' },
+  rejuvenate: { id:'rejuvenate', name:'Rejuvenate', mpCost:30, cooldown:5, levelRequired:22, target:'all_allies', type:'heal', power:0.5, healOverTime:3, description:'Ongoing healing for all allies over 3 turns.' },
+  miracle: { id:'miracle', name:'Miracle', mpCost:60, cooldown:10, levelRequired:30, target:'all_allies', type:'heal', power:4.0, removeStatus:true, description:'Full restore one ally; 30% chance to restore all.' },
+
+  // === ROGUE (new) ===
+  pick_pocket: { id:'pick_pocket', name:'Pick Pocket', mpCost:0, cooldown:4, levelRequired:2, target:'single_enemy', type:'special', effect:'steal_gold', value:20, description:'Steal a small amount of gold from the enemy.' },
+  cripple: { id:'cripple', name:'Cripple', mpCost:8, cooldown:3, levelRequired:4, target:'single_enemy', type:'debuff', effect:'spd_down', value:0.3, duration:3, description:'Hobble the enemy, reducing SPD by 30%.' },
+  throw_dagger: { id:'throw_dagger', name:'Throw Dagger', mpCost:6, cooldown:1, levelRequired:6, target:'single', type:'physical', power:0.9, description:'Hurl a dagger from range.' },
+  dirty_fighting: { id:'dirty_fighting', name:'Dirty Fighting', mpCost:10, cooldown:3, levelRequired:10, target:'single_enemy', type:'debuff', effect:'random_debuff', duration:3, description:'Underhanded blow applying a random debuff.' },
+  expose_weakness: { id:'expose_weakness', name:'Expose Weakness', mpCost:14, cooldown:4, levelRequired:13, target:'single_enemy', type:'debuff', effect:'expose', critMult:2.0, duration:3, description:'Reveal weak point, doubling your crit damage vs target.' },
+  shadow_meld: { id:'shadow_meld', name:'Shadow Meld', mpCost:18, cooldown:5, levelRequired:19, target:'self', type:'buff', effect:'invisible_until_attack', duration:5, description:'Meld into shadows until you attack.' },
+  hemorrhage: { id:'hemorrhage', name:'Hemorrhage', mpCost:22, cooldown:4, levelRequired:22, target:'single', type:'physical', power:1.5, statusEffect:'bleed', bleedStacks:3, description:'Deep wound causing heavy 3-stack bleed.' },
+  one_shot: { id:'one_shot', name:'One Shot, One Kill', mpCost:40, cooldown:8, levelRequired:30, target:'single', type:'physical', power:2.0, instakillBelow:0.3, description:'Instantly eliminate enemy below 30% HP.' },
+
+  // === PALADIN (new) ===
+  holy_strike: { id:'holy_strike', name:'Holy Strike', mpCost:4, cooldown:0, levelRequired:2, target:'single', type:'physical', element:'light', power:0.9, description:'Quick light-infused strike.' },
+  sacred_ground: { id:'sacred_ground', name:'Sacred Ground', mpCost:15, cooldown:5, levelRequired:4, target:'all_allies', type:'special', effect:'regen_zone', healPerTurn:8, duration:3, description:'Blessed ground healing all allies each turn.' },
+  rebuke: { id:'rebuke', name:'Rebuke', mpCost:12, cooldown:3, levelRequired:6, target:'all_enemies', type:'magic', element:'light', power:1.0, silenceUndead:true, description:'Holy rebuke damaging evil and silencing undead.' },
+  consecration: { id:'consecration', name:'Consecration', mpCost:20, cooldown:4, levelRequired:10, target:'all_enemies', type:'magic', element:'light', power:1.2, description:'Holy area consecration dealing light damage to all.' },
+  divine_protection: { id:'divine_protection', name:'Divine Protection', mpCost:22, cooldown:5, levelRequired:13, target:'all_allies', type:'buff', effect:'damage_reduce', value:0.2, duration:3, description:'Reduce all party damage taken by 20%.' },
+  holy_chain: { id:'holy_chain', name:'Holy Chain', mpCost:25, cooldown:3, levelRequired:19, target:'random_enemies', hits:3, type:'physical', element:'light', power:0.9, description:'Chain of holy strikes hitting 3 enemies.' },
+  shield_of_faith: { id:'shield_of_faith', name:'Shield of Faith', mpCost:35, cooldown:7, levelRequired:22, target:'self', type:'buff', effect:'full_reflect', duration:1, description:'Reflect all damage back to attackers for 1 turn.' },
+  crusader_oath: { id:'crusader_oath', name:'Crusader\'s Oath', mpCost:50, cooldown:8, levelRequired:30, target:'self', type:'buff', effect:'crusader', element:'light', atkMult:1.5, duration:4, description:'All attacks become holy; +50% vs undead/demons for 4 turns.' },
+
+  // === NECROMANCER (new) ===
+  dark_pulse: { id:'dark_pulse', name:'Dark Pulse', mpCost:6, cooldown:1, levelRequired:2, target:'all_enemies', type:'magic', element:'dark', power:0.5, description:'Weak pulse of dark energy hitting all foes.' },
+  bone_spear: { id:'bone_spear', name:'Bone Spear', mpCost:10, cooldown:2, levelRequired:4, target:'all_enemies', type:'physical', element:'dark', power:0.7, description:'Spear of bone piercing through all enemies.' },
+  life_tap: { id:'life_tap', name:'Life Tap', mpCost:0, cooldown:3, levelRequired:6, target:'self', type:'special', effect:'hp_to_mp', value:0.1, description:'Convert 10% HP into MP.' },
+  plague: { id:'plague', name:'Plague', mpCost:18, cooldown:4, levelRequired:10, target:'all_enemies', type:'debuff', statusEffect:'poison', duration:5, description:'Spreading plague poisoning all enemies.' },
+  corpse_explosion: { id:'corpse_explosion', name:'Corpse Explosion', mpCost:20, cooldown:3, levelRequired:13, target:'all_enemies', type:'magic', element:'dark', power:1.8, description:'Detonate a fallen enemy for massive AoE damage.' },
+  wither: { id:'wither', name:'Wither', mpCost:25, cooldown:5, levelRequired:19, target:'all_enemies', type:'debuff', effect:'all_stats_down', value:0.25, duration:3, description:'Reduce all enemy stats by 25%.' },
+  lich_form: { id:'lich_form', name:'Lich Form', mpCost:40, cooldown:8, levelRequired:22, target:'self', type:'buff', effect:'lich', duration:4, description:'Temporarily become undead — immune to all status effects.' },
+  death_and_decay: { id:'death_and_decay', name:'Death and Decay', mpCost:65, cooldown:9, levelRequired:30, target:'all_enemies', type:'magic', element:'dark', power:1.5, dotPerTurn:0.3, duration:3, description:'Necrotic field dealing heavy damage each turn.' },
+
+  // === BERSERKER (new) ===
+  bull_rush: { id:'bull_rush', name:'Bull Rush', mpCost:5, cooldown:2, levelRequired:2, target:'single', type:'physical', power:1.1, stunChance:0.3, description:'Charge enemy with bull-like force, 30% stun chance.' },
+  battle_shout: { id:'battle_shout', name:'Battle Shout', mpCost:8, cooldown:4, levelRequired:4, target:'self', type:'buff', effect:'atk_up', value:0.25, duration:3, description:'War shout boosting own ATK by 25%.' },
+  headbutt: { id:'headbutt', name:'Headbutt', mpCost:6, cooldown:2, levelRequired:6, target:'single', type:'physical', power:0.9, stunChance:0.4, description:'Skull-crushing headbutt with 40% stun chance.' },
+  berserker_charge: { id:'berserker_charge', name:'Berserker Charge', mpCost:0, cooldown:5, levelRequired:10, target:'single', type:'physical', power:2.0, firstStrike:true, description:'Explosive charge — first attack deals 200% damage.' },
+  endure: { id:'endure', name:'Endure', mpCost:0, cooldown:5, levelRequired:13, target:'self', type:'buff', effect:'endure', threshold:0.25, duration:1, description:'When below 25% HP, take no damage for 1 turn.' },
+  blood_frenzy: { id:'blood_frenzy', name:'Blood Frenzy', mpCost:0, cooldown:4, levelRequired:19, target:'self', type:'buff', effect:'lifesteal', value:0.05, duration:5, description:'Each hit restores 5% of damage dealt as HP.' },
+  titan_slam: { id:'titan_slam', name:'Titan Slam', mpCost:25, cooldown:5, levelRequired:22, target:'all_enemies', type:'physical', element:'earth', power:1.8, description:'Earthquake slam devastating all enemies.' },
+  godlike_rage: { id:'godlike_rage', name:'Godlike Rage', mpCost:40, cooldown:9, levelRequired:30, target:'single', type:'physical', power:5.0, description:'Ultimate berserk blow — 500% weapon damage in a godlike frenzy.' },
+
+  // === ELEMENTALIST (new) ===
+  water_jet: { id:'water_jet', name:'Water Jet', mpCost:5, cooldown:0, levelRequired:2, target:'single', type:'magic', element:'water', power:1.0, description:'High-pressure water blast.' },
+  earth_tremor: { id:'earth_tremor', name:'Earth Tremor', mpCost:5, cooldown:0, levelRequired:4, target:'all_enemies', type:'magic', element:'earth', power:0.6, description:'Ground-shaking tremor hitting all foes.' },
+  elemental_infusion: { id:'elemental_infusion', name:'Elemental Infusion', mpCost:10, cooldown:3, levelRequired:6, target:'self', type:'buff', effect:'weapon_infuse', duration:3, description:'Infuse weapon with active element for 3 turns.' },
+  twin_elements: { id:'twin_elements', name:'Twin Elements', mpCost:28, cooldown:4, levelRequired:10, target:'all_enemies', type:'magic', element:'fusion', power:1.2, hits:2, description:'Cast two opposing elements simultaneously.' },
+  vortex: { id:'vortex', name:'Vortex', mpCost:25, cooldown:4, levelRequired:13, target:'all_enemies', type:'magic', element:'wind', power:1.3, description:'Howling vortex pulling all enemies and dealing wind damage.' },
+  overload: { id:'overload', name:'Overload', mpCost:30, cooldown:5, levelRequired:19, target:'self', type:'buff', effect:'ignore_resist', duration:1, description:'Next spell ignores all elemental resistances.' },
+  elemental_cascade: { id:'elemental_cascade', name:'Elemental Cascade', mpCost:45, cooldown:6, levelRequired:22, target:'all_enemies', type:'magic', element:'all', power:1.2, hits:3, description:'Chain reaction of elements blasting all foes.' },
+  world_ender: { id:'world_ender', name:'World Ender', mpCost:75, cooldown:10, levelRequired:30, target:'all_enemies', type:'magic', element:'all', power:3.0, description:'Simultaneous unleashing of all elements.' },
+
+  // === BARD (new) ===
+  soothing_melody: { id:'soothing_melody', name:'Soothing Melody', mpCost:5, cooldown:2, levelRequired:2, target:'single_ally', type:'heal', power:0.7, description:'Gentle tune restoring a little HP.' },
+  war_chant: { id:'war_chant', name:'War Chant', mpCost:10, cooldown:3, levelRequired:4, target:'all_allies', type:'buff', effect:'str_up', value:0.15, duration:3, description:'Rousing chant boosting party STR by 15%.' },
+  dissonance: { id:'dissonance', name:'Dissonance', mpCost:10, cooldown:3, levelRequired:6, target:'single_enemy', type:'debuff', effect:'silence', duration:2, description:'Harsh note silencing one enemy for 2 turns.' },
+  aria_of_healing: { id:'aria_of_healing', name:'Aria of Healing', mpCost:20, cooldown:5, levelRequired:10, target:'all_allies', type:'heal', power:0.4, healOverTime:3, description:'Healing song restoring HP each turn for 3 turns.' },
+  battle_cry: { id:'battle_cry', name:'Battle Cry', mpCost:22, cooldown:4, levelRequired:13, target:'all_allies', type:'buff', effect:'atk_spd_up', value:0.2, duration:3, description:'Inspiring cry boosting party ATK and SPD by 20%.' },
+  siren_song: { id:'siren_song', name:'Siren Song', mpCost:28, cooldown:6, levelRequired:19, target:'single_enemy', type:'debuff', effect:'charm', duration:1, description:'Enchanting song charms one enemy to fight for you.' },
+  finale: { id:'finale', name:'Finale', mpCost:35, cooldown:5, levelRequired:22, target:'single', type:'magic', power:2.5, description:'Explosive final note — massive single-target magic burst.' },
+  grand_finale: { id:'grand_finale', name:'Grand Finale', mpCost:60, cooldown:9, levelRequired:30, target:'all_enemies', type:'magic', power:2.0, description:'Ultimate performance devastating all foes with sonic energy.' },
+
+  // === MONK (new) ===
+  ki_charge: { id:'ki_charge', name:'Ki Charge', mpCost:0, cooldown:3, levelRequired:2, target:'self', type:'buff', effect:'atk_up', value:0.2, duration:1, description:'Channel ki for a +20% ATK boost on next attack.' },
+  deflect: { id:'deflect', name:'Deflect', mpCost:8, cooldown:3, levelRequired:4, target:'self', type:'buff', effect:'negate_next_physical', duration:2, description:'Deflect the next physical attack entirely.' },
+  pressure_point: { id:'pressure_point', name:'Pressure Point', mpCost:12, cooldown:3, levelRequired:6, target:'single', type:'physical', power:0.8, statusEffect:'paralyze', statusChance:0.5, description:'Strike a nerve point, 50% chance to paralyze.' },
+  steel_skin: { id:'steel_skin', name:'Steel Skin', mpCost:10, cooldown:4, levelRequired:10, target:'self', type:'buff', effect:'def_up', value:0.3, duration:3, description:'Harden skin like steel, +30% DEF for 3 turns.' },
+  whirlwind_kick: { id:'whirlwind_kick', name:'Whirlwind Kick', mpCost:16, cooldown:3, levelRequired:13, target:'all_enemies', type:'physical', power:0.8, description:'Spinning kick hitting all enemies.' },
+  void_palm: { id:'void_palm', name:'Void Palm', mpCost:18, cooldown:4, levelRequired:19, target:'single', type:'physical', power:1.0, drainMp:20, description:'Drain 20 MP from enemy.' },
+  tiger_stance: { id:'tiger_stance', name:'Tiger Stance', mpCost:22, cooldown:5, levelRequired:22, target:'self', type:'buff', effect:'crit_up', value:3.0, duration:3, description:'Triple crit rate for 3 turns.' },
+  dragon_ascent: { id:'dragon_ascent', name:'Dragon Ascent', mpCost:55, cooldown:9, levelRequired:30, target:'single', hits:5, type:'physical', power:0.8, ignoreDefense:true, description:'Transcendent multi-hit dragon fist technique.' },
+
+  // === SUMMONER (new) ===
+  spirit_bond: { id:'spirit_bond', name:'Spirit Bond', mpCost:8, cooldown:4, levelRequired:2, target:'self', type:'buff', effect:'spirit_bond', duration:5, description:'Bond with your summon to share HP recovery.' },
+  summon_fairy: { id:'summon_fairy', name:'Summon Fairy', mpCost:12, cooldown:4, levelRequired:4, target:'self', type:'summon', summonType:'fairy', description:'Summon a healing fairy that restores ally HP each turn.' },
+  beast_call: { id:'beast_call', name:'Beast Call', mpCost:15, cooldown:4, levelRequired:6, target:'self', type:'summon', summonType:'beast', description:'Call a wild beast to attack.' },
+  dimensional_rift: { id:'dimensional_rift', name:'Dimensional Rift', mpCost:25, cooldown:5, levelRequired:10, target:'all_enemies', type:'magic', element:'void', power:1.2, description:'Open a rift to a random realm, striking all enemies.' },
+  arcane_beast: { id:'arcane_beast', name:'Arcane Beast', mpCost:30, cooldown:5, levelRequired:13, target:'self', type:'summon', summonType:'arcane_beast', description:'Summon a powerful magical beast.' },
+  celestial_guardian: { id:'celestial_guardian', name:'Celestial Guardian', mpCost:40, cooldown:6, levelRequired:19, target:'self', type:'summon', summonType:'guardian', description:'Summon a celestial angel to shield the party.' },
+  prism_summon: { id:'prism_summon', name:'Prism Summon', mpCost:55, cooldown:7, levelRequired:22, target:'self', type:'summon', summonType:'prism', description:'Summon all elemental spirits at once.' },
+  leviathan: { id:'leviathan', name:'Leviathan', mpCost:75, cooldown:10, levelRequired:30, target:'all_enemies', type:'summon', summonType:'leviathan', power:3.5, description:'Summon the sea serpent lord to devastate all foes.' },
+
+  // === DARK KNIGHT (new) ===
+  shadow_step_dk: { id:'shadow_step_dk', name:'Shadow Step', mpCost:8, cooldown:2, levelRequired:2, target:'single', type:'physical', element:'dark', power:1.2, description:'Teleport behind enemy for a bonus dark strike.' },
+  dark_pulse_dk: { id:'dark_pulse_dk', name:'Dark Pulse', mpCost:6, cooldown:1, levelRequired:4, target:'all_enemies', type:'magic', element:'dark', power:0.5, description:'Wave of dark energy hitting all enemies.' },
+  siphon: { id:'siphon', name:'Siphon', mpCost:0, cooldown:3, levelRequired:6, target:'single_enemy', type:'special', effect:'drain_mp', value:15, description:'Drain 15 MP from the enemy.' },
+  unholy_aura: { id:'unholy_aura', name:'Unholy Aura', mpCost:18, cooldown:5, levelRequired:10, target:'all_enemies', type:'debuff', effect:'dark_weakness', value:0.25, duration:3, description:'Weaken all enemies to dark attacks.' },
+  void_blade: { id:'void_blade', name:'Void Blade', mpCost:20, cooldown:4, levelRequired:13, target:'single', type:'physical', element:'dark', power:1.8, defPiercing:0.5, description:'Blade of void ignoring 50% enemy defense.' },
+  necrotic_strike: { id:'necrotic_strike', name:'Necrotic Strike', mpCost:25, cooldown:4, levelRequired:19, target:'single', type:'physical', element:'dark', power:1.5, effect:'no_heal', duration:3, description:'Prevent enemy HP recovery for 3 turns.' },
+  shadow_world: { id:'shadow_world', name:'Shadow World', mpCost:35, cooldown:6, levelRequired:22, target:'self', type:'buff', effect:'shadow_phase', duration:3, description:'Phase into shadow world gaining damage and evasion.' },
+  apocalypse: { id:'apocalypse', name:'Apocalypse', mpCost:70, cooldown:9, levelRequired:30, target:'all_enemies', type:'magic', element:'dark', power:3.0, description:'World-ending dark explosion obliterating all foes.' },
+
+  // === ALCHEMIST (new) ===
+  flash_bomb: { id:'flash_bomb', name:'Flash Bomb', mpCost:6, cooldown:3, levelRequired:2, target:'all_enemies', type:'debuff', effect:'blind', duration:2, description:'Blinding flash grenade — blind all enemies for 2 turns.' },
+  corrosive_vial: { id:'corrosive_vial', name:'Corrosive Vial', mpCost:10, cooldown:3, levelRequired:4, target:'single_enemy', type:'debuff', effect:'def_down', value:0.25, duration:3, description:'Acid vial reducing enemy DEF by 25%.' },
+  stimulant: { id:'stimulant', name:'Stimulant', mpCost:12, cooldown:4, levelRequired:6, target:'single_ally', type:'buff', effect:'spd_dex_up', value:0.2, duration:3, description:'Boost one ally SPD and DEX by 20%.' },
+  smoke_screen: { id:'smoke_screen', name:'Smoke Screen', mpCost:14, cooldown:5, levelRequired:10, target:'all_enemies', type:'debuff', effect:'blind', duration:1, description:'Dense smoke causes all enemies to miss for 1 turn.' },
+  poison_cloud: { id:'poison_cloud', name:'Poison Cloud', mpCost:18, cooldown:4, levelRequired:13, target:'all_enemies', type:'debuff', statusEffect:'poison', duration:4, description:'Toxic cloud poisoning all enemies.' },
+  nullify_element: { id:'nullify_element', name:'Nullify Element', mpCost:22, cooldown:5, levelRequired:19, target:'all_enemies', type:'debuff', effect:'remove_element_resist', duration:3, description:'Negate all enemy elemental resistances for 3 turns.' },
+  unstable_compound: { id:'unstable_compound', name:'Unstable Compound', mpCost:25, cooldown:5, levelRequired:22, target:'all_enemies', type:'magic', element:'fire', power:2.0, randomEffect:true, description:'Volatile mixture with a random powerful secondary effect.' },
+  philosopher_stone_skill: { id:'philosopher_stone_skill', name:"Philosopher's Stone", mpCost:60, cooldown:9, levelRequired:30, target:'all_allies', type:'special', effect:'full_restore_items', description:"Use the Philosopher's Stone to restore party HP/MP fully." },
+
+  // === SAMURAI (new) ===
+  quick_draw: { id:'quick_draw', name:'Quick Draw', mpCost:4, cooldown:2, levelRequired:2, target:'single', type:'physical', power:1.0, alwaysFirst:true, description:'Lightning-fast draw strike — always acts first.' },
+  keen_edge: { id:'keen_edge', name:'Keen Edge', mpCost:8, cooldown:3, levelRequired:4, target:'self', type:'buff', effect:'def_pierce', value:0.2, duration:3, description:'Sharpen blade to pierce 20% enemy defense for 3 turns.' },
+  thousand_cuts: { id:'thousand_cuts', name:'Thousand Cuts', mpCost:15, cooldown:3, levelRequired:6, target:'single', hits:6, type:'physical', power:0.45, description:'Six rapid cuts dealing moderate damage each.' },
+  death_blow: { id:'death_blow', name:'Death Blow', mpCost:20, cooldown:4, levelRequired:10, target:'single', type:'physical', power:1.5, instakillChance:0.25, description:'25% chance for instant kill, otherwise 150% damage.' },
+  genji_cut: { id:'genji_cut', name:'Genji Cut', mpCost:22, cooldown:4, levelRequired:13, target:'single', type:'physical', power:2.3, description:'Legendary Genji technique — heavy precise cut.' },
+  void_strike: { id:'void_strike', name:'Void Strike', mpCost:28, cooldown:5, levelRequired:19, target:'single', type:'physical', element:'dark', power:2.5, ignoreDefense:true, description:'Strike between dimensions, ignoring all defenses.' },
+  mirror_blade: { id:'mirror_blade', name:'Mirror Blade', mpCost:25, cooldown:5, levelRequired:22, target:'self', type:'buff', effect:'magic_reflect_physical', duration:2, description:'Reflect the next magical attack as a physical counter.' },
+  musou_no_tachi: { id:'musou_no_tachi', name:'Musou no Tachi', mpCost:55, cooldown:9, levelRequired:30, target:'single', type:'physical', power:5.0, description:'Transcendent supreme sword technique — ultimate strike.' },
+
+  // === WITCH DOCTOR (new) ===
+  fetish: { id:'fetish', name:'Fetish', mpCost:8, cooldown:4, levelRequired:2, target:'self', type:'summon', summonType:'fetish', description:'Craft a fetish that buffs party ATK and DEF.' },
+  plague_curse: { id:'plague_curse', name:'Plague Curse', mpCost:10, cooldown:3, levelRequired:4, target:'single_enemy', type:'debuff', effect:'multi_debuff', stacks:2, duration:3, description:'Stack 2 curses on one enemy at once.' },
+  soul_harvest: { id:'soul_harvest', name:'Soul Harvest', mpCost:0, cooldown:3, levelRequired:6, target:'self', type:'special', effect:'mp_per_debuffed_enemy', value:8, description:'Restore 8 MP for each debuffed enemy.' },
+  locust_swarm: { id:'locust_swarm', name:'Locust Swarm', mpCost:18, cooldown:4, levelRequired:10, target:'all_enemies', type:'debuff', effect:'swarm', dotDamage:15, duration:3, description:'Plague of locusts damaging all enemies each turn.' },
+  acid_rain: { id:'acid_rain', name:'Acid Rain', mpCost:20, cooldown:4, levelRequired:13, target:'all_enemies', type:'debuff', effect:'def_down', value:0.2, duration:3, description:'Corrosive rain eroding all enemy defenses.' },
+  spirit_barrage: { id:'spirit_barrage', name:'Spirit Barrage', mpCost:25, cooldown:4, levelRequired:19, target:'all_enemies', type:'magic', element:'dark', power:1.0, hits:3, description:'Fire three spirit blasts at all enemies.' },
+  death_curse: { id:'death_curse', name:'Death Curse', mpCost:30, cooldown:6, levelRequired:22, target:'single_enemy', type:'debuff', effect:'death_timer', duration:3, description:'Cursed to die — if not dispelled in 3 turns, target perishes.' },
+  rain_of_toads: { id:'rain_of_toads', name:'Rain of Toads', mpCost:60, cooldown:9, levelRequired:30, target:'all_enemies', type:'magic', element:'dark', power:2.2, multiDebuff:true, description:'Massive dark downpour raining toads and applying multiple debuffs.' }
 };

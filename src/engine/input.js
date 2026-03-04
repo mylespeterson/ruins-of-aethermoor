@@ -16,8 +16,8 @@ export class InputHandler {
         this.keysJustPressed[e.code] = true;
       }
       this.keys[e.code] = true;
-      // Prevent scrolling with arrow keys
-      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) {
+      // Prevent scrolling with arrow keys and browser tab focus trapping
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','Tab'].includes(e.code)) {
         e.preventDefault();
       }
     });

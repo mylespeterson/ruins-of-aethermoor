@@ -102,58 +102,263 @@ export class TownUI {
     // Camera centered on player
     const camX = this.playerX * ts - W/2 + ts/2;
     const camY = this.playerY * ts - H/2 + ts/2;
-    // Draw terrain
+    const ctx = r.ctx;
+
+    // Draw terrain tiles
     for (let ty = 0; ty < town.height; ty++) {
       for (let tx = 0; tx < town.width; tx++) {
         const sx = tx * ts - camX, sy = ty * ts - camY;
         if (sx < -ts || sx > W || sy < -ts || sy > H) continue;
         const cell = town.grid[ty][tx];
-        const colors = ['#2a4a1a','#2a4a1a','#4a4a3a','#5a5a4a'];
-        r.drawRect(sx, sy, ts, ts, colors[cell] || '#2a4a1a');
-        // Grid lines
-        const ctx = r.ctx;
-        ctx.strokeStyle = 'rgba(0,0,0,0.1)'; ctx.lineWidth = 0.5;
-        ctx.strokeRect(sx, sy, ts, ts);
+        if (cell === 4) {
+          // Water — draw stream
+          const wave = Math.sin(this.animTime * 2 + tx * 0.5 + ty * 0.5) * 0.08;
+          const blue = Math.round(160 + wave * 40);
+          r.drawRect(sx, sy, ts, ts, `#1a4a${blue.toString(16).padStart(2,'0')}`);
+          // Shimmer lines
+          ctx.strokeStyle = 'rgba(100,180,255,0.3)';
+          ctx.lineWidth = 2;
+          for (let i = 0; i < 3; i++) {
+            const waveX = ((this.animTime * 20 + i * 11 + tx * 3) % ts);
+            ctx.beginPath();
+            ctx.moveTo(sx + waveX, sy + ts * 0.3 + i * 8);
+            ctx.lineTo(sx + waveX + 8, sy + ts * 0.3 + i * 8);
+            ctx.stroke();
+          }
+        } else if (cell === 5) {
+          // Bridge planks
+          r.drawRect(sx, sy, ts, ts, '#8B6914');
+          ctx.strokeStyle = '#5a4010';
+          ctx.lineWidth = 1;
+          for (let i = 0; i < 4; i++) {
+            const by = sy + i * (ts / 4);
+            ctx.beginPath(); ctx.moveTo(sx, by); ctx.lineTo(sx + ts, by); ctx.stroke();
+          }
+          ctx.strokeStyle = '#aa8822';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(sx + 2, sy + 2, ts - 4, ts - 4);
+        } else {
+          const colors = ['#2d5a1a','#3a6a22','#4a4a3a','#5a5a48'];
+          r.drawRect(sx, sy, ts, ts, colors[cell] || '#2d5a1a');
+          if (cell === 3) {
+            // Cobblestone pattern
+            ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 0.5;
+            for (let pi = 0; pi < 4; pi++) {
+              const cx2 = sx + (pi % 2) * (ts/2), cy2 = sy + Math.floor(pi/2) * (ts/2);
+              ctx.strokeRect(cx2 + 1, cy2 + 1, ts/2 - 2, ts/2 - 2);
+            }
+          } else if (cell === 2) {
+            // Road edge shadow
+            ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 0.5;
+            ctx.strokeRect(sx, sy, ts, ts);
+          }
+        }
       }
     }
-    // Draw buildings
+
+    // Draw buildings (SNES-style with more detail)
     town.buildings.forEach(b => {
       const sx = b.x * ts - camX, sy = b.y * ts - camY;
       const bw = b.w * ts, bh = b.h * ts;
-      // Building body
-      r.drawRoundRect(sx+1, sy+1, bw-2, bh-2, 4, b.color, b.roofColor, 2);
-      // Roof
-      r.drawRoundRect(sx+1, sy+1, bw-2, ts*0.6, 4, b.roofColor, b.roofColor, 0);
+      if (sx + bw < -ts || sx > W + ts || sy + bh < -ts || sy > H + ts) return;
+
+      // Foundation/shadow
+      r.drawRect(sx + 3, sy + bh - 4, bw - 3, 6, 'rgba(0,0,0,0.25)');
+
+      // Main building walls
+      r.drawRoundRect(sx + 1, sy + ts * 0.55, bw - 2, bh - ts * 0.55 - 1, 3, b.color, '#000000', 1);
+
+      // Windows
+      const winColor = '#ffe8a0';
+      const winRows = Math.max(1, Math.floor((bh - ts * 0.8) / (ts * 0.6)));
+      const winCols = Math.max(1, Math.floor((bw - ts * 0.4) / (ts * 0.7)));
+      for (let wr = 0; wr < winRows; wr++) {
+        for (let wc = 0; wc < winCols; wc++) {
+          const wx = sx + ts * 0.3 + wc * (ts * 0.7);
+          const wy = sy + ts * 0.75 + wr * (ts * 0.58);
+          if (wx + 10 < sx + bw - 4 && wy + 12 < sy + bh - 4) {
+            r.drawRect(wx, wy, 10, 12, '#1a1a2a');
+            r.drawRect(wx + 1, wy + 1, 8, 5, winColor);
+            r.drawRect(wx + 4, wy + 1, 1, 10, 'rgba(0,0,0,0.3)');
+            r.drawRect(wx + 1, wy + 6, 8, 1, 'rgba(0,0,0,0.3)');
+          }
+        }
+      }
+
       // Door
-      r.drawRect(sx + bw/2 - 8, sy + bh - ts*0.7, 16, ts*0.6, '#332211');
-      // Name label
-      r.drawTextCentered(b.name, sx + bw/2, sy + bh/2 - 8, '#ffffff', 11, 'monospace', true);
+      const doorW = Math.min(18, bw * 0.25);
+      const doorH = ts * 0.65;
+      const doorX = sx + bw / 2 - doorW / 2;
+      const doorY = sy + bh - doorH - 1;
+      r.drawRect(doorX, doorY, doorW, doorH, '#2a1505');
+      r.drawRoundRect(doorX + 1, doorY + 1, doorW - 2, doorH - 4, 3, '#3d2008', null, 0);
+      // Door knob
+      r.drawRect(doorX + doorW * 0.6, doorY + doorH * 0.45, 3, 3, '#ccaa44');
+
+      // SNES-style pitched roof
+      const roofH = ts * 0.65;
+      ctx.beginPath();
+      ctx.moveTo(sx - 3, sy + roofH + 2);         // left eave
+      ctx.lineTo(sx + bw / 2, sy - 2);            // peak
+      ctx.lineTo(sx + bw + 3, sy + roofH + 2);    // right eave
+      ctx.lineTo(sx + bw + 3, sy + roofH + ts * 0.15);
+      ctx.lineTo(sx - 3, sy + roofH + ts * 0.15);
+      ctx.closePath();
+      ctx.fillStyle = b.roofColor;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      // Roof ridge highlight
+      ctx.beginPath();
+      ctx.moveTo(sx + bw * 0.25, sy + roofH * 0.5 + 2);
+      ctx.lineTo(sx + bw / 2, sy - 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Chimney on some buildings
+      if (b.id === 'inn' || b.id === 'crafting') {
+        const chX = sx + bw * 0.75;
+        const chY = sy + roofH * 0.3;
+        r.drawRect(chX, chY, 8, roofH * 0.5, '#5a3a2a');
+        r.drawRect(chX - 2, chY, 12, 5, '#6a4a3a');
+        // Smoke puffs
+        for (let s = 0; s < 3; s++) {
+          const puff = (this.animTime * 0.5 + s * 0.4) % 1.0;
+          ctx.globalAlpha = (1 - puff) * 0.5;
+          ctx.fillStyle = '#cccccc';
+          ctx.beginPath();
+          ctx.arc(chX + 4 + Math.sin(this.animTime + s) * 4,
+                  chY - puff * 20, 4 + puff * 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // Sign above door
+      const signW = Math.min(bw - 8, 60);
+      r.drawRoundRect(sx + bw / 2 - signW / 2, sy + ts * 0.55, signW, 14, 2, '#3a2510', '#aa8833', 1);
+      r.drawTextCentered(b.name, sx + bw / 2, sy + ts * 0.56, '#ffe0a0', 9, 'monospace', true);
     });
-    // NPC decorations
-    const npcBob = Math.sin(this.animTime * 2) * 2;
-    // Well position
-    const wellX = 13 * ts - camX, wellY = 9 * ts - camY;
-    r.drawRect(wellX + 4, wellY + 4, ts - 8, ts - 8, '#664422');
-    r.drawRect(wellX + 8, wellY + 8, ts - 16, ts - 16, '#222244');
-    // Draw player
+
+    // Draw trees (SNES-style sprite trees)
+    town.trees.forEach(t => {
+      const sx = t.x * ts - camX, sy = t.y * ts - camY;
+      if (sx < -ts || sx > W || sy < -ts || sy > H) return;
+      const sway = Math.sin(this.animTime * 1.2 + t.x * 2.7 + t.y * 1.9) * 1.5;
+      // Trunk
+      r.drawRect(sx + ts * 0.38, sy + ts * 0.55, ts * 0.24, ts * 0.45, '#6b3f1a');
+      // Canopy layers (SNES-style stacked triangles)
+      const canopyColor = '#1a5c0a';
+      const canopyHigh = '#2a7a14';
+      ctx.beginPath();
+      ctx.moveTo(sx + ts / 2 + sway * 0.5, sy + 1);
+      ctx.lineTo(sx + ts * 0.1, sy + ts * 0.45);
+      ctx.lineTo(sx + ts * 0.9, sy + ts * 0.45);
+      ctx.closePath();
+      ctx.fillStyle = canopyColor;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(sx + ts / 2 + sway, sy + ts * 0.2);
+      ctx.lineTo(sx + ts * 0.05, sy + ts * 0.62);
+      ctx.lineTo(sx + ts * 0.95, sy + ts * 0.62);
+      ctx.closePath();
+      ctx.fillStyle = canopyHigh;
+      ctx.fill();
+      // Canopy outline
+      ctx.strokeStyle = '#0d3806';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+
+    // Well at town center
+    const wellX = 18 * ts - camX, wellY = 13 * ts - camY;
+    r.drawRect(wellX + 4, wellY + 6, ts - 8, ts - 10, '#7a5533');
+    r.drawRect(wellX + 8, wellY + 10, ts - 16, ts - 16, '#0a1a2a');
+    r.drawRect(wellX + 2, wellY + 2, ts - 4, 6, '#5a3a1a');
+    ctx.strokeStyle = '#4a2a10'; ctx.lineWidth = 2;
+    ctx.strokeRect(wellX + 4, wellY + 6, ts - 8, ts - 10);
+
+    // Lampposts along roads (decorative)
+    [[9,14],[9,15],[19,7],[19,22]].forEach(([lx,ly]) => {
+      const lsx = lx * ts - camX + ts/2, lsy = ly * ts - camY;
+      if (lsx < -ts || lsx > W || lsy < -ts || lsy > H) return;
+      r.drawRect(lsx - 2, lsy, 4, ts - 4, '#5a5a6a');
+      r.drawRect(lsx - 8, lsy - 4, 16, 6, '#6a6a7a');
+      // Lamp glow
+      const glow = 0.5 + Math.sin(this.animTime * 3) * 0.1;
+      ctx.globalAlpha = glow;
+      ctx.fillStyle = '#ffee88';
+      ctx.beginPath();
+      ctx.arc(lsx, lsy - 2, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+
+    // NPC: town guard near dungeon path
+    const guardBob = Math.sin(this.animTime * 1.5) * 1.5;
+    const gx = 29 * ts - camX, gy = 21 * ts - camY;
+    if (gx > -ts && gx < W && gy > -ts && gy < H) {
+      // Guard shadow
+      r.drawRect(gx + 5, gy + ts - 6, ts - 10, 5, 'rgba(0,0,0,0.3)');
+      // Body (armor)
+      r.drawRect(gx + 8, gy + 10 + guardBob, ts - 16, ts - 20, '#8899aa');
+      // Legs
+      r.drawRect(gx + 9, gy + ts - 12 + guardBob, 6, 8, '#6677aa');
+      r.drawRect(gx + ts - 15, gy + ts - 12 + guardBob, 6, 8, '#6677aa');
+      // Head
+      ctx.fillStyle = '#aabbcc';
+      ctx.fillRect(gx + 8, gy + 2 + guardBob, ts - 16, 10);
+      ctx.fillStyle = '#ffcc99';
+      ctx.fillRect(gx + 10, gy + 4 + guardBob, ts - 20, 7);
+      // Spear
+      r.drawRect(gx + ts - 6, gy + guardBob, 3, ts - 4, '#8B6914');
+    }
+
+    // Draw player (SNES FF-style sprite)
     const px = this.playerX * ts - camX;
     const py = this.playerY * ts - camY;
-    // Shadow
-    r.drawRect(px + 6, py + ts - 8, ts - 12, 6, 'rgba(0,0,0,0.3)');
-    // Body
-    r.drawRect(px + 8, py + 10 + npcBob, ts - 16, ts - 18, '#4466cc');
+    const bob = Math.sin(this.animTime * 6) * 2;
+    // Player shadow
+    r.drawRect(px + 5, py + ts - 6, ts - 10, 5, 'rgba(0,0,0,0.35)');
+    // Boots
+    r.drawRect(px + 8, py + ts - 10 + bob, 6, 8, '#2244aa');
+    r.drawRect(px + ts - 14, py + ts - 10 + bob, 6, 8, '#2244aa');
+    // Legs
+    r.drawRect(px + 9, py + ts - 18 + bob, 5, 9, '#334499');
+    r.drawRect(px + ts - 14, py + ts - 18 + bob, 5, 9, '#334499');
+    // Body / tunic
+    r.drawRect(px + 7, py + 12 + bob, ts - 14, ts - 26, '#4466cc');
+    // Belt
+    r.drawRect(px + 7, py + 22 + bob, ts - 14, 3, '#aa8833');
+    // Arms
+    r.drawRect(px + 3, py + 13 + bob, 5, ts - 28, '#3355bb');
+    r.drawRect(px + ts - 8, py + 13 + bob, 5, ts - 28, '#3355bb');
+    // Neck
+    r.drawRect(px + ts/2 - 3, py + 8 + bob, 6, 5, '#ffcc99');
     // Head
-    r.ctx.fillStyle = '#ffcc99';
-    r.ctx.beginPath();
-    r.ctx.arc(px + ts/2, py + 8 + npcBob, 8, 0, Math.PI*2);
-    r.ctx.fill();
-    // Direction indicator
-    const arrowColors = { up:'#8888ff', down:'#8888ff', left:'#8888ff', right:'#8888ff' };
-    r.ctx.fillStyle = arrowColors[this.facing];
-    r.ctx.beginPath();
-    if (this.facing === 'down') { r.ctx.moveTo(px+12, py+ts-2); r.ctx.lineTo(px+ts/2, py+ts+4); r.ctx.lineTo(px+ts-12, py+ts-2); }
-    else if (this.facing === 'up') { r.ctx.moveTo(px+12, py+4); r.ctx.lineTo(px+ts/2, py-2); r.ctx.lineTo(px+ts-12, py+4); }
-    r.ctx.closePath(); r.ctx.fill();
+    ctx.fillStyle = '#ffcc99';
+    ctx.beginPath();
+    ctx.ellipse(px + ts/2, py + 6 + bob, 7, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Hair (direction-based)
+    ctx.fillStyle = '#553322';
+    ctx.fillRect(px + ts/2 - 7, py + 0 + bob, 14, 5);
+    // Eyes
+    ctx.fillStyle = '#222222';
+    ctx.fillRect(px + ts/2 - 4, py + 5 + bob, 2, 2);
+    ctx.fillRect(px + ts/2 + 2, py + 5 + bob, 2, 2);
+
+    // Direction indicator arrow
+    ctx.fillStyle = '#aabbff';
+    ctx.beginPath();
+    if (this.facing === 'down')  { ctx.moveTo(px+10,py+ts-2); ctx.lineTo(px+ts/2,py+ts+5); ctx.lineTo(px+ts-10,py+ts-2); }
+    else if (this.facing === 'up')   { ctx.moveTo(px+10,py+4); ctx.lineTo(px+ts/2,py-3); ctx.lineTo(px+ts-10,py+4); }
+    else if (this.facing === 'left') { ctx.moveTo(px+4,py+10); ctx.lineTo(px-3,py+ts/2); ctx.lineTo(px+4,py+ts-10); }
+    else if (this.facing === 'right') { ctx.moveTo(px+ts-4,py+10); ctx.lineTo(px+ts+3,py+ts/2); ctx.lineTo(px+ts-4,py+ts-10); }
+    ctx.closePath(); ctx.fill();
+
     // UI Panel
     r.drawRoundRect(0, H-85, W, 85, 0, 'rgba(0,0,10,0.85)', '#334', 1);
     // Party HP
@@ -171,11 +376,11 @@ export class TownUI {
     // Message
     if (this.messageTimer > 0) {
       const alpha = Math.min(1, this.messageTimer);
-      r.ctx.save();
-      r.ctx.globalAlpha = alpha;
+      ctx.save();
+      ctx.globalAlpha = alpha;
       r.drawRoundRect(W/2-250, H-155, 500, 35, 6, '#1a1a3a', '#5566aa', 1);
       r.drawTextCentered(this.message, W/2, H-147, '#ffffff', 15);
-      r.ctx.restore();
+      ctx.restore();
     }
     // Controls hint
     r.drawText('WASD: Move  Enter: Interact  I: Inventory  ESC: Menu', 10, H-30, '#555566', 13);
