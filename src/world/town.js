@@ -111,7 +111,7 @@ export class Town {
     ];
     positions.forEach(([x,y]) => {
       if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
-        const tile = this.grid[y] && this.grid[y][x];
+        const tile = this.grid[y][x];
         if (tile === 0 || tile === 1) trees.push({ x, y });
       }
     });

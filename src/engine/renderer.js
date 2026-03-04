@@ -449,7 +449,7 @@ export class Renderer {
       c.fillRect(x+w*0.56, y+h*0.74+bob, w*0.10, h*0.22);
     } else {
       // Generic SNES-style humanoid enemy
-      const body = color, bodyDark = color.replace(/[0-9a-f]{2}$/i, '66');
+      const body = color, bodyDark = 'rgba(0,0,0,0.35)';
       // Shadow
       c.fillStyle = 'rgba(0,0,0,0.3)';
       c.beginPath(); c.ellipse(x+w*0.5, y+h*0.94+bob, w*0.30, h*0.05, 0, 0, Math.PI*2); c.fill();
