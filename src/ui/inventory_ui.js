@@ -13,6 +13,7 @@ export class InventoryUI {
     this.selectedItem = 0;
     this.selectedMember = 0;
     this.selectedSlot = 'weapon';
+    this.selectedEquipItem = 0;
     this.returnState = 'DUNGEON';
     this.scrollOffset = 0;
     this.subTab = 'items';
@@ -32,7 +33,10 @@ export class InventoryUI {
       this.game.setState(this.returnState);
       return;
     }
-    if (input.isKeyJustPressed('Tab')) {
+    if (input.isKeyJustPressed('KeyQ')) {
+      this.selectedMember = (this.selectedMember - 1 + this.game.party.members.length) % this.game.party.members.length;
+    }
+    if (input.isKeyJustPressed('KeyE')) {
       this.selectedMember = (this.selectedMember + 1) % this.game.party.members.length;
     }
     // Tab selection
@@ -104,22 +108,118 @@ export class InventoryUI {
     else if (item.effect === 'heal_hp_all') this.game.party.members.forEach(m => m.heal(item.value));
   }
 
+  _getEquippableItems(member, slot) {
+    if (!member) return [];
+    return this.game.party.inventory.getAllItems().filter(item => {
+      const d = item.data || {};
+      if (slot === 'weapon') return d.type === 'weapon';
+      return d.type === 'armor' && d.slot === slot;
+    });
+  }
+
+  _itemScore(item, classId) {
+    const d = item || {};
+    const cls = CLASSES[classId] || {};
+    const primary = cls.primaryStats || [];
+    let score = 0;
+    score += (d.atk || 0) * 2;
+    score += (d.def || 0) * 1.5;
+    score += (d.str || 0) * (primary.includes('str') ? 2 : 1);
+    score += (d.dex || 0) * (primary.includes('dex') ? 2 : 1);
+    score += (d.int || 0) * (primary.includes('int') ? 2 : 1);
+    score += (d.wis || 0) * (primary.includes('wis') ? 2 : 1);
+    score += (d.con || 0) * 1.5;
+    score += (d.spd || 0);
+    score += (d.hp || 0) * 0.5;
+    score += (d.mp || 0) * 0.3;
+    return score;
+  }
+
+  _autoEquip(member) {
+    SLOT_ORDER.forEach(slot => {
+      const candidates = this._getEquippableItems(member, slot);
+      if (candidates.length === 0) return;
+      const current = member.equipment[slot];
+      const currentScore = current ? this._itemScore(current, member.classId) : -1;
+      let bestItem = null, bestScore = currentScore;
+      candidates.forEach(entry => {
+        const score = this._itemScore(entry.data || {}, member.classId);
+        if (score > bestScore) { bestScore = score; bestItem = entry; }
+      });
+      if (bestItem) {
+        if (current) this.game.party.inventory.addItem(current.id, 1, current);
+        member.equip(bestItem.data);
+        this.game.party.inventory.removeItem(bestItem.id, 1);
+      }
+    });
+  }
+
   _updateEquipTab(input, W, H) {
+    const member = this.game.party.members[this.selectedMember];
     const slotList = SLOT_ORDER;
+
+    // Slot navigation
     slotList.forEach((slot, i) => {
-      if (input.isClickIn(10, 100 + i * 45, 200, 40)) { this.selectedSlot = slot; }
+      if (input.isClickIn(10, 100 + i * 48, 205, 44)) {
+        if (this.selectedSlot !== slot) { this.selectedSlot = slot; this.selectedEquipItem = 0; }
+      }
     });
-    // Select member
-    this.game.party.members.forEach((m, i) => {
-      if (input.isClickIn(10 + i * 95, 52, 90, 32)) { this.selectedMember = i; }
+    if (input.isKeyJustPressed('ArrowUp')) {
+      const idx = SLOT_ORDER.indexOf(this.selectedSlot);
+      this.selectedSlot = SLOT_ORDER[Math.max(0, idx - 1)];
+      this.selectedEquipItem = 0;
+    }
+    if (input.isKeyJustPressed('ArrowDown')) {
+      const idx = SLOT_ORDER.indexOf(this.selectedSlot);
+      this.selectedSlot = SLOT_ORDER[Math.min(SLOT_ORDER.length - 1, idx + 1)];
+      this.selectedEquipItem = 0;
+    }
+
+    // Item picker navigation
+    const equippable = this._getEquippableItems(member, this.selectedSlot);
+    equippable.forEach((item, i) => {
+      if (input.isClickIn(W * 0.46 + 5, 110 + i * 52, W * 0.54 - 20, 48)) {
+        this.selectedEquipItem = i;
+      }
     });
+    if (input.isKeyJustPressed('ArrowRight')) this.selectedEquipItem = Math.min(equippable.length - 1, this.selectedEquipItem + 1);
+    if (input.isKeyJustPressed('ArrowLeft')) this.selectedEquipItem = Math.max(0, this.selectedEquipItem - 1);
+
+    // Equip selected item (Enter)
+    if (input.isKeyJustPressed('Enter')) {
+      const entry = equippable[this.selectedEquipItem];
+      if (entry && member) {
+        const old = member.equipment[this.selectedSlot];
+        member.equip(entry.data);
+        this.game.party.inventory.removeItem(entry.id, 1);
+        if (old) this.game.party.inventory.addItem(old.id, 1, old);
+        this.selectedEquipItem = 0;
+      }
+    }
+
+    // Equip via button click
+    if (input.isClickIn(W - 150, H - 145, 140, 40)) {
+      const entry = equippable[this.selectedEquipItem];
+      if (entry && member) {
+        const old = member.equipment[this.selectedSlot];
+        member.equip(entry.data);
+        this.game.party.inventory.removeItem(entry.id, 1);
+        if (old) this.game.party.inventory.addItem(old.id, 1, old);
+        this.selectedEquipItem = 0;
+      }
+    }
+
     // Unequip
-    if (input.isKeyJustPressed('Delete') || input.isClickIn(W - 150, H - 100, 140, 44)) {
-      const member = this.game.party.members[this.selectedMember];
+    if (input.isKeyJustPressed('Delete') || input.isClickIn(W - 150, H - 100, 140, 40)) {
       if (member) {
         const item = member.unequip(this.selectedSlot);
         if (item) this.game.party.inventory.addItem(item.id, 1, item);
       }
+    }
+
+    // Auto-equip (R key or button)
+    if (input.isKeyJustPressed('KeyR') || input.isClickIn(W - 150, H - 55, 140, 40)) {
+      if (member) this._autoEquip(member);
     }
   }
 
@@ -172,7 +272,7 @@ export class InventoryUI {
       case 'spells':    this._renderSpellsTab(r, W, H); break;
       case 'status':    this._renderStatusTab(r, W, H); break;
     }
-    r.drawText('ESC/I: Close  Tab: Switch member', 10, H - 22, '#555566', 13);
+    r.drawText('ESC/I: Close  Q/E: Switch member', 10, H - 22, '#555566', 13);
   }
 
   _renderItemsTab(r, W, H) {
@@ -232,43 +332,72 @@ export class InventoryUI {
   _renderEquipTab(r, W, H) {
     const member = this.game.party.members[this.selectedMember];
     if (!member) return;
-    r.drawBorderBox(5, 90, W * 0.45, H - 115, 'Equipment');
-    r.drawText(`${member.name} - ${member.classId}`, 15, 105, '#ffdd88', 16, 'left', 'monospace', true);
+
+    // Left panel: equipped slots
+    r.drawBorderBox(5, 90, W * 0.45, H - 115, 'Equipped');
+    r.drawText(`${member.name} — ${CLASSES[member.classId]?.name || member.classId}`, 15, 105, '#ffdd88', 14, 'left', 'monospace', true);
     SLOT_ORDER.forEach((slot, i) => {
-      const by = 130 + i * 50;
+      const by = 126 + i * 48;
       const item = member.equipment[slot];
       const sel = this.selectedSlot === slot;
-      const hov = this.game.input.isMouseOver(10, by, W * 0.45 - 10, 45);
-      r.drawRoundRect(10, by, W * 0.45 - 10, 45, 4,
+      const hov = this.game.input.isMouseOver(10, by, W * 0.45 - 10, 44);
+      r.drawRoundRect(10, by, W * 0.45 - 10, 44, 4,
         sel ? '#1e2050' : hov ? '#161635' : '#10101e', sel ? '#6666cc' : '#334455', 1);
-      r.drawText(`[${SLOT_LABELS[slot]}]`, 18, by + 5, '#888899', 12);
-      r.drawText(item ? (item.name || item.id) : '(empty)', 18, by + 22, item ? '#ffffff' : '#555566', 14);
+      r.drawText(`[${SLOT_LABELS[slot]}]`, 18, by + 4, '#888899', 11);
+      r.drawText(item ? (item.name || item.id) : '(empty)', 18, by + 19, item ? '#ffffff' : '#555566', 13);
       if (item) {
-        const stats = [];
-        if (item.atk) stats.push(`ATK+${item.atk}`);
-        if (item.def) stats.push(`DEF+${item.def}`);
-        if (item.int) stats.push(`INT+${item.int}`);
-        r.drawText(stats.join(' '), W * 0.3, by + 22, '#88aacc', 12);
+        const parts = [];
+        if (item.atk) parts.push(`ATK+${item.atk}`);
+        if (item.def) parts.push(`DEF+${item.def}`);
+        if (item.str) parts.push(`STR+${item.str}`);
+        if (item.int) parts.push(`INT+${item.int}`);
+        if (item.dex) parts.push(`DEX+${item.dex}`);
+        r.drawText(parts.slice(0, 3).join(' '), W * 0.28, by + 19, '#88aacc', 11);
       }
     });
-    // Stats panel
-    r.drawBorderBox(W * 0.46, 90, W * 0.54 - 5, H - 115, 'Character Stats');
-    const sx = W * 0.47, sy = 110;
-    const stats = [
-      ['HP', `${member.hp}/${member.maxHp}`], ['MP', `${member.mp}/${member.maxMp}`],
-      ['STR', member.str], ['DEX', member.dex], ['INT', member.int],
-      ['WIS', member.wis], ['CON', member.con], ['SPD', member.spd],
-      ['ATK', member.atk], ['DEF', member.def], ['CRIT', `${(member.critChance*100).toFixed(1)}%`]
-    ];
-    stats.forEach(([label, val], i) => {
-      const row = Math.floor(i / 2), col = i % 2;
-      r.drawText(`${label}: ${val}`, sx + col * 120, sy + row * 24, '#cccccc', 14);
+
+    // Right panel: item picker for selected slot
+    r.drawBorderBox(W * 0.46, 90, W * 0.54 - 5, H - 115, `${SLOT_LABELS[this.selectedSlot]} — Available`);
+    const equippable = this._getEquippableItems(member, this.selectedSlot);
+    const currentEquipped = member.equipment[this.selectedSlot];
+    if (equippable.length === 0) {
+      r.drawTextCentered('No items in inventory', W * 0.73, 180, '#555566', 14);
+      r.drawTextCentered(`for this slot`, W * 0.73, 200, '#555566', 13);
+    }
+    const maxVisible = Math.floor((H - 200) / 52);
+    equippable.slice(0, maxVisible).forEach((entry, i) => {
+      const d = entry.data || {};
+      const by = 110 + i * 52;
+      const sel = this.selectedEquipItem === i;
+      const hov = this.game.input.isMouseOver(W * 0.46 + 5, by, W * 0.54 - 20, 48);
+      r.drawRoundRect(W * 0.46 + 5, by, W * 0.54 - 20, 48, 4,
+        sel ? '#1e2050' : hov ? '#161635' : '#10101e', sel ? '#6666cc' : '#445566', 1);
+      r.drawText(d.name || entry.id.replace(/_/g, ' '), W * 0.46 + 14, by + 4, sel ? '#fff' : '#cccccc', 13);
+
+      // Stat comparison
+      const stats = ['atk','def','str','dex','int','wis','con'];
+      let cx = W * 0.46 + 14, cy = by + 22;
+      stats.forEach(stat => {
+        const newVal = d[stat] || 0;
+        const oldVal = currentEquipped ? (currentEquipped[stat] || 0) : 0;
+        if (newVal === 0 && oldVal === 0) return;
+        const diff = newVal - oldVal;
+        const color = diff > 0 ? '#44ff88' : diff < 0 ? '#ff6666' : '#aaaacc';
+        const sign = diff > 0 ? '+' : '';
+        r.drawText(`${stat.toUpperCase()}${sign}${diff !== 0 ? diff : newVal}`, cx, cy, color, 11);
+        cx += 56;
+        if (cx > W - 30) { cx = W * 0.46 + 14; cy += 14; }
+      });
     });
-    // Race/Class passives
-    r.drawText(`Race: ${RACES[member.raceId]?.passive.name}`, sx, sy + 156, '#aa88ff', 13);
-    r.drawText(`Class: ${CLASSES[member.classId]?.uniqueMechanic.name}`, sx, sy + 174, '#88aaff', 13);
-    const hov = this.game.input.isMouseOver(W - 145, H - 100, 135, 38);
-    r.drawButton(W - 145, H - 100, 135, 38, 'Unequip', hov);
+
+    // Action buttons
+    const hasSelItem = equippable[this.selectedEquipItem] !== undefined;
+    const hovEquip = this.game.input.isMouseOver(W - 150, H - 145, 140, 40);
+    const hovUnequip = this.game.input.isMouseOver(W - 150, H - 100, 140, 40);
+    const hovAuto = this.game.input.isMouseOver(W - 150, H - 55, 140, 40);
+    r.drawButton(W - 150, H - 145, 140, 40, 'Equip [Enter]', hovEquip, false, !hasSelItem);
+    r.drawButton(W - 150, H - 100, 140, 40, 'Unequip [Del]', hovUnequip, false, !currentEquipped);
+    r.drawButton(W - 150, H - 55, 140, 40, 'Auto-Equip [R]', hovAuto);
   }
 
   _renderSpellsTab(r, W, H) {

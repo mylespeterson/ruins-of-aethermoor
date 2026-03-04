@@ -52,7 +52,7 @@ Requires Node.js 14+. No npm install needed.
 | `Escape` | Back / Pause / Return to town |
 | `I` | Open Inventory |
 | `M` | Toggle minimap |
-| `Tab` | Cycle party members in menus |
+| `Q` / `E` | Cycle party members in menus |
 | Mouse click | Select menu options / buttons |
 
 ---
@@ -128,7 +128,7 @@ Defeat sends the party to the **Game Over** screen (load save or return to town 
 ### 6. Leveling Up
 - EXP threshold per level = `currentLevel × 100`.
 - On level-up, stats improve based on class growth rates and new skills may unlock.
-- Skill unlock milestones: levels **1, 3, 5, 8, 12, 16, 20, 25**.
+- Skill unlock milestones: levels **1, 2, 3, 4, 5, 6, 8, 10, 12, 13, 16, 19, 20, 22, 25, 30**.
 - Maximum level: **50**.
 
 ### 7. Crafting

@@ -75,7 +75,7 @@ class HowToPlayScreen {
       'BACK / PAUSE: Escape',
       'INVENTORY: I key',
       'MINIMAP TOGGLE: M key',
-      'CYCLE PARTY: Tab',
+      'CYCLE PARTY: Q / E',
       '',
       'DUNGEON:',
       '  Walk on stairs (▼) to go deeper',
