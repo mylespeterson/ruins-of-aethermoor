@@ -8,6 +8,7 @@ import { InventoryUI } from './inventory_ui.js';
 import { ShopUI } from './shop_ui.js';
 import { CraftingUI } from './crafting_ui.js';
 import { HUD } from './hud.js';
+import { OverworldUI } from './overworld_ui.js';
 
 export class UIManager {
   constructor(game) {
@@ -21,6 +22,7 @@ export class UIManager {
   _initScreens() {
     this.screens[GAME_STATES.MAIN_MENU]      = new MainMenu(this.game);
     this.screens[GAME_STATES.PARTY_CREATION] = new PartyCreation(this.game);
+    this.screens[GAME_STATES.OVERWORLD]      = new OverworldUI(this.game);
     this.screens[GAME_STATES.TOWN]           = new TownUI(this.game);
     this.screens[GAME_STATES.DUNGEON]        = new DungeonUI(this.game);
     this.screens[GAME_STATES.BATTLE]         = new BattleUI(this.game);
@@ -77,11 +79,20 @@ class HowToPlayScreen {
       'MINIMAP TOGGLE: M key',
       'CYCLE PARTY: Q / E',
       '',
-      'DUNGEON:',
-      '  Walk on stairs (▼) to go deeper',
-      '  Walk on stairs (▲) to return to town',
-      '  Explore to find treasure chests, fountains, and shops',
-      '  Enemies appear randomly as you walk',
+      'OVERWORLD (3D Isometric View):',
+      '  Explore the world to find towns, caves & hidden secrets',
+      '  Walk onto a TOWN tile to enter the town',
+      '  Walk onto a CAVE tile to enter the dungeon',
+      '  Hidden treasures glow gold — walk over them to collect!',
+      '  Ancient Ruins grant stat bonuses and experience',
+      '  Encounter rate is LOW on the overworld',
+      '',
+      'CAVE / DUNGEON:',
+      '  Encounter rate is HIGH — fight often to gain strength',
+      '  Each floor ends with a mandatory BOSS fight',
+      '  Defeat the boss to unlock the stairs down (▼)',
+      '  Walk on stairs (▲) to escape back to the overworld',
+      '  Treasure chests, healing fountains & traps inside',
       '',
       'BATTLE:',
       '  Click/select actions from the menu',
@@ -89,12 +100,13 @@ class HowToPlayScreen {
       '  Skill: Use class abilities (costs MP)',
       '  Item: Use consumables from inventory',
       '  Defend: Halve damage until your next turn',
-      '  Flee: 50% chance to escape (no bosses)',
+      '  Flee: 50% chance to escape (not available vs bosses)',
       '',
       'TOWN:',
       '  Visit shops to buy equipment and supplies',
       '  Rest at the Inn to fully restore HP/MP',
       '  Use the Crafting Station to forge items',
+      '  Press ESC to leave town and return to the overworld',
       '',
       'Press any key or click to return...'
     ];
@@ -110,8 +122,9 @@ class LevelUpScreen {
   update(dt) {
     this.timer += dt;
     if (this.timer > 5 || this.game.input.wasClicked() || this.game.input.isKeyJustPressed('Enter') || this.game.input.isKeyJustPressed('Space')) {
-      // Return to dungeon after level up
-      this.game.setState('DUNGEON');
+      // Return to the correct state after level up
+      const returnState = (this.data && this.data.returnToState) ? this.data.returnToState : 'DUNGEON';
+      this.game.setState(returnState);
     }
   }
   render(r) {

@@ -16,9 +16,18 @@ export class DungeonUI {
     this.openChests = new Set();
     this.usedFountains = new Set();
     this.gen = new DungeonGenerator();
+    // Track whether the floor boss has been defeated (required to descend)
+    this.bossDefeated = false;
+    this.fromOverworld = false;
   }
 
   onEnter(data) {
+    if (data && data.fromOverworld) {
+      this.fromOverworld = true;
+      this.bossDefeated = false;
+      this.openChests.clear();
+      this.usedFountains.clear();
+    }
     if (data && data.battleResult) {
       const br = data.battleResult;
       const parts = [];
@@ -29,6 +38,12 @@ export class DungeonUI {
         this.message = parts.join('  ');
         this.messageTimer = 3;
       }
+    }
+    // After a boss victory, mark the boss as defeated so stairs unlock
+    if (data && data.wasBoss) {
+      this.bossDefeated = true;
+      this.message = `Floor ${this.game.currentFloor} boss defeated! Stairs unlocked!`;
+      this.messageTimer = 3;
     }
     const dungeon = this.game.dungeon;
     if (dungeon && this.game.party) {
@@ -43,7 +58,15 @@ export class DungeonUI {
     const input = this.game.input;
     if (input.isKeyJustPressed('KeyI')) { this.game.openInventory('DUNGEON'); return; }
     if (input.isKeyJustPressed('KeyM')) { this.showMinimap = !this.showMinimap; }
-    if (input.isKeyJustPressed('Escape')) { this.game.enterTown(); return; }
+    if (input.isKeyJustPressed('Escape')) {
+      // Return to overworld if we came from there, otherwise legacy town path
+      if (this.fromOverworld && this.game.overworld) {
+        this.game.enterOverworld({ fromCave: true, restorePos: { x: this.game.caveEntryX, y: this.game.caveEntryY } });
+      } else {
+        this.game.enterTown();
+      }
+      return;
+    }
     if (this.moveDelay > 0) return;
     const { dx, dy } = input.getMoveDir();
     if (dx !== 0 || dy !== 0) {
@@ -59,6 +82,22 @@ export class DungeonUI {
     if (nx < 0 || ny < 0 || nx >= dungeon.width || ny >= dungeon.height) return;
     const tile = dungeon.grid[ny][nx];
     if (!TILE_WALKABLE[tile]) { this.moveDelay = 0.08; return; }
+    // Approaching stairs-down while boss is not yet defeated → trigger boss fight
+    if (tile === TILE.STAIRS_DOWN && !this.bossDefeated) {
+      party.x = nx;
+      party.y = ny;
+      this.moveDelay = 0.3;
+      this.gen.updateFogOfWar(dungeon.fog, nx, ny);
+      this.message = `Floor ${dungeon.floor} boss approaches!`;
+      this.messageTimer = 1.5;
+      const enemies = Enemy.generateEncounter(dungeon.floor, true);
+      if (enemies.length > 0) {
+        setTimeout(() => this.game.startBattle(enemies, true), 800);
+      } else {
+        this.bossDefeated = true;
+      }
+      return;
+    }
     // Move
     party.x = nx;
     party.y = ny;
@@ -68,8 +107,8 @@ export class DungeonUI {
     this.gen.updateFogOfWar(dungeon.fog, nx, ny);
     // Check tile interactions
     this._checkTileInteraction(nx, ny, tile);
-    // Random encounters
-    if (this.stepCounter % (4 + Math.floor(Math.random() * 4)) === 0 && tile === TILE.FLOOR) {
+    // Cave encounters: higher rate than overworld — every 3-6 steps
+    if (this.stepCounter % (3 + Math.floor(Math.random() * 4)) === 0 && tile === TILE.FLOOR) {
       this._triggerRandomEncounter();
     }
   }
@@ -77,9 +116,14 @@ export class DungeonUI {
   _checkTileInteraction(x, y, tile) {
     const key = `${x},${y}`;
     if (tile === TILE.STAIRS_DOWN) {
+      // Boss defeated; descend
       this._goDeeper();
     } else if (tile === TILE.STAIRS_UP) {
-      this.game.enterTown();
+      if (this.fromOverworld && this.game.overworld) {
+        this.game.enterOverworld({ fromCave: true, restorePos: { x: this.game.caveEntryX, y: this.game.caveEntryY } });
+      } else {
+        this.game.enterTown();
+      }
     } else if (tile === TILE.TREASURE_CHEST && !this.openChests.has(key)) {
       this.openChests.add(key);
       this._openTreasure(x, y);
@@ -98,19 +142,17 @@ export class DungeonUI {
 
   _goDeeper() {
     this.game.currentFloor++;
+    this.bossDefeated = false;
     this.openChests.clear();
     this.usedFountains.clear();
     this.game.generateFloor(this.game.currentFloor);
     this.message = `Descended to Floor ${this.game.currentFloor}!`;
     this.messageTimer = 2;
-    // Boss encounter every 10 floors
-    if (this.game.currentFloor % 10 === 0) {
-      const enemies = Enemy.generateEncounter(this.game.currentFloor, true);
-      if (enemies.length > 0) {
-        this.message = `Floor ${this.game.currentFloor} Boss encountered!`;
-        this.messageTimer = 1;
-        setTimeout(() => this.game.startBattle(enemies, true), 500);
-      }
+    // Boss appears at the end of every floor — spawned automatically on the new floor
+    const enemies = Enemy.generateEncounter(this.game.currentFloor, true);
+    if (enemies.length > 0) {
+      this.message = `Floor ${this.game.currentFloor} — a powerful boss lurks here!`;
+      this.messageTimer = 2;
     }
   }
 
@@ -160,7 +202,7 @@ export class DungeonUI {
     const floor = this.game.currentFloor;
     const enemies = Enemy.generateEncounter(floor);
     if (enemies.length > 0) {
-      this.game.startBattle(enemies, floor % 10 === 0);
+      this.game.startBattle(enemies, false);
     }
   }
 
@@ -197,7 +239,13 @@ export class DungeonUI {
           r.ctx.fillStyle = baseColor;
           if (tile === TILE.STAIRS_DOWN) {
             r.ctx.font = `${ts*0.7}px monospace`; r.ctx.textAlign = 'center'; r.ctx.textBaseline = 'middle';
-            r.ctx.fillText('▼', sx + ts/2, sy + ts/2);
+            if (!this.bossDefeated) {
+              // Locked — show red lock symbol
+              r.ctx.fillStyle = '#ff4444';
+              r.ctx.fillText('🔒', sx + ts/2, sy + ts/2);
+            } else {
+              r.ctx.fillText('▼', sx + ts/2, sy + ts/2);
+            }
           } else if (tile === TILE.STAIRS_UP) {
             r.ctx.font = `${ts*0.7}px monospace`; r.ctx.textAlign = 'center'; r.ctx.textBaseline = 'middle';
             r.ctx.fillText('▲', sx + ts/2, sy + ts/2);
@@ -271,7 +319,9 @@ export class DungeonUI {
       });
     });
     r.drawText(`💰 ${party.gold}g`, W-150, H-75, '#ffdd44', 15, 'left', 'monospace', true);
-    r.drawText(`Floor ${dungeon.floor}`, W-150, H-55, '#aaaacc', 14);
+    const bossStatus = this.bossDefeated ? '✓ Boss Slain' : '⚠ Boss Awaits';
+    const bossColor  = this.bossDefeated ? '#44ff88' : '#ff4444';
+    r.drawText(`Floor ${dungeon.floor}  ${bossStatus}`, W-200, H-55, bossColor, 13, 'left', 'monospace', true);
     r.drawText(`(${party.x},${party.y})`, W-150, H-38, '#666677', 12);
     // Minimap
     if (this.showMinimap) {
@@ -286,7 +336,7 @@ export class DungeonUI {
       r.ctx.restore();
     }
     // Controls
-    r.drawText('WASD:Move  I:Inventory  M:Minimap  ESC:Town', 10, 10, '#445566', 12);
+    r.drawText('WASD:Move  I:Inventory  M:Minimap  ESC:Overworld', 10, 10, '#445566', 12);
   }
 
   _renderMinimap(r, W, dungeon, party) {

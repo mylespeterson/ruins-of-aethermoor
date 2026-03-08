@@ -153,7 +153,8 @@ export class PartyCreation {
     party.members = [];
     this.createdChars.forEach(c => party.addMember(c));
     this.game.party = party;
-    this.game.enterTown();
+    // Start the overworld for new games
+    this.game.startOverworld();
   }
 
   render(r) {
