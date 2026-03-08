@@ -9,14 +9,35 @@ export class TownUI {
     this.messageTimer = 0;
     this.animTime = 0;
     this.moveDelay = 0;
+    this.townName = 'Aethermoor';
+    this.townReturnX = 0;
+    this.townReturnY = 0;
   }
 
   onEnter(data) {
     const town = this.game.town;
     this.playerX = town.playerStart.x;
     this.playerY = town.playerStart.y;
-    this.message = 'Welcome to Aethermoor! Walk to buildings to enter.';
+
+    // Resolve town name from overworld data
+    const names = this.game.townNames || ['Aethermoor', 'Stonehaven', 'Mistwood', 'Saltport'];
+    const idx = (data && data.townIndex != null) ? data.townIndex : (this.game.currentTownIndex || 0);
+    this.townName = names[idx] || names[0];
+    this.townReturnX = (data && data.fromX != null) ? data.fromX : this.game.overworldX;
+    this.townReturnY = (data && data.fromY != null) ? data.fromY : this.game.overworldY;
+
+    this.message = `Welcome to ${this.townName}! Walk to buildings to enter. ESC to leave.`;
     this.messageTimer = 3;
+  }
+
+  /** Leave town and return to overworld */
+  _leaveTown() {
+    if (this.game.overworld) {
+      this.game.enterOverworld({ fromTown: true, restorePos: { x: this.townReturnX, y: this.townReturnY } });
+    } else {
+      // Legacy fallback: no overworld generated yet
+      this.game.startDungeon();
+    }
   }
 
   update(dt) {
@@ -24,8 +45,12 @@ export class TownUI {
     this.moveDelay = Math.max(0, this.moveDelay - dt);
     if (this.messageTimer > 0) this.messageTimer -= dt;
     const input = this.game.input;
-    if (input.isKeyJustPressed('KeyI') || input.isKeyJustPressed('Escape')) {
+    if (input.isKeyJustPressed('KeyI')) {
       this.game.openInventory('TOWN');
+      return;
+    }
+    if (input.isKeyJustPressed('Escape')) {
+      this._leaveTown();
       return;
     }
     if (this.moveDelay > 0) return;
@@ -72,7 +97,8 @@ export class TownUI {
     } else if (building.id === 'crafting') {
       this.game.openCrafting();
     } else if (building.id === 'dungeon') {
-      this.game.startDungeon();
+      // The dungeon is now accessed from the overworld — this building now acts as the town exit
+      this._leaveTown();
     } else if (building.id === 'party_mgmt') {
       this.game.openInventory('TOWN');
     } else {
@@ -238,8 +264,9 @@ export class TownUI {
 
       // Sign above door
       const signW = Math.min(bw - 8, 60);
+      const signLabel = b.id === 'dungeon' ? 'Leave Town' : b.name;
       r.drawRoundRect(sx + bw / 2 - signW / 2, sy + ts * 0.55, signW, 14, 2, '#3a2510', '#aa8833', 1);
-      r.drawTextCentered(b.name, sx + bw / 2, sy + ts * 0.56, '#ffe0a0', 9, 'monospace', true);
+      r.drawTextCentered(signLabel, sx + bw / 2, sy + ts * 0.56, '#ffe0a0', 9, 'monospace', true);
     });
 
     // Draw trees (SNES-style sprite trees)
@@ -382,7 +409,10 @@ export class TownUI {
       r.drawTextCentered(this.message, W/2, H-147, '#ffffff', 15);
       ctx.restore();
     }
+    // Town name header
+    r.drawRoundRect(W/2 - 120, 8, 240, 28, 6, 'rgba(0,0,0,0.7)', '#5544aa', 1);
+    r.drawTextCentered(this.townName, W/2, 14, '#ccaaff', 16, 'monospace', true);
     // Controls hint
-    r.drawText('WASD: Move  Enter: Interact  I: Inventory  ESC: Menu', 10, H-30, '#555566', 13);
+    r.drawText('WASD: Move  Enter: Interact  I: Inventory  ESC: Leave Town', 10, H-30, '#555566', 13);
   }
 }
