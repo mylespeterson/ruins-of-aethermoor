@@ -331,7 +331,7 @@ export class OverworldUI {
       ctx.fillStyle = '#ffe880';
       ctx.fillRect(sx - 4,  sy - 12, 5, 5);
       ctx.fillRect(sx + 1,  sy - 12, 5, 5);
-      ctx.globalAlpha = ctx.globalAlpha; // unchanged (just for clarity)
+      // globalAlpha intentionally left at the modified value (ctx.restore() will reset it)
 
     } else if (tileType === OTILE.CAVE) {
       // Cave arch
@@ -442,16 +442,16 @@ export class OverworldUI {
   }
 
   _renderMinimap(r, W, H, ow) {
-    const mmSize = 140, ts = 2.5;
+    const mmSize = 140, mmTileSize = 2.5;
     const mmX = W - mmSize - 10, mmY = 10;
     r.drawRoundRect(mmX - 2, mmY - 2, mmSize + 4, mmSize + 4, 3, 'rgba(0,0,0,0.8)', '#445566', 1);
 
     const px = this.game.overworldX, py = this.game.overworldY;
-    const startTX = px - Math.floor(mmSize / ts / 2);
-    const startTY = py - Math.floor(mmSize / ts / 2);
+    const startTX = px - Math.floor(mmSize / mmTileSize / 2);
+    const startTY = py - Math.floor(mmSize / mmTileSize / 2);
 
-    for (let ty = 0; ty < mmSize / ts; ty++) {
-      for (let tx = 0; tx < mmSize / ts; tx++) {
+    for (let ty = 0; ty < mmSize / mmTileSize; ty++) {
+      for (let tx = 0; tx < mmSize / mmTileSize; tx++) {
         const gx = startTX + tx, gy = startTY + ty;
         if (gx < 0 || gy < 0 || gx >= ow.width || gy >= ow.height) continue;
         const fog = ow.fog[gy]?.[gx] ?? 0;
@@ -459,15 +459,16 @@ export class OverworldUI {
         const tile = ow.grid[gy][gx];
         const col  = OTILE_COLOR[tile]?.top || '#334455';
         const alpha = fog === 1 ? 0.5 : 1;
-        r.ctx.save(); r.ctx.globalAlpha = alpha;
-        r.drawRect(mmX + tx * ts, mmY + ty * ts, ts, ts, col);
+        r.ctx.save();
+        r.ctx.globalAlpha = alpha;
+        r.drawRect(mmX + tx * mmTileSize, mmY + ty * mmTileSize, mmTileSize, mmTileSize, col);
         r.ctx.restore();
       }
     }
     // Player dot
-    const pdx = (px - startTX) * ts + mmX;
-    const pdy = (py - startTY) * ts + mmY;
-    r.drawRect(pdx - 1, pdy - 1, ts + 2, ts + 2, '#ffffff');
+    const pdx = (px - startTX) * mmTileSize + mmX;
+    const pdy = (py - startTY) * mmTileSize + mmY;
+    r.drawRect(pdx - 1, pdy - 1, mmTileSize + 2, mmTileSize + 2, '#ffffff');
     r.drawText('Map', mmX + 4, mmY + 4, '#8899bb', 10);
   }
 

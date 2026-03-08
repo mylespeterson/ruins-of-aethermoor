@@ -7,6 +7,10 @@ import { OverworldGenerator } from '../world/overworld_generator.js';
 import { Town } from '../world/town.js';
 import { Party } from '../entities/party.js';
 
+// Fixed seed used when regenerating the overworld from a save file so the
+// world layout is consistent across sessions for the same save.
+const OVERWORLD_SAVE_SEED = 42;
+
 export const GAME_STATES = {
   MAIN_MENU: 'MAIN_MENU',
   PARTY_CREATION: 'PARTY_CREATION',
@@ -273,7 +277,7 @@ export class Game {
     }
     // Regenerate overworld, then position player at saved coords
     const gen = new OverworldGenerator();
-    this.overworld = gen.generate(42); // fixed seed so the world is consistent
+    this.overworld = gen.generate(OVERWORLD_SAVE_SEED);
     if (this.overworldX === 0 && this.overworldY === 0) {
       const start = this.overworld.startPos;
       this.overworldX = start.x;
