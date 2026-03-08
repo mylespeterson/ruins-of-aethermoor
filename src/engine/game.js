@@ -42,7 +42,7 @@ export class Game {
     this.currentFloor = 1;
     this.dungeon = null;
     this.overworld = null;
-    this.town = new Town();
+    this.town = new Town(0);
     this.currentBattle = null;
     this.currentShop = null;
     this.pendingLevelUps = [];
@@ -140,6 +140,8 @@ export class Game {
     this.currentTownIndex = townIndex;
     this.caveEntryX = fromX;  // re-use as return coords
     this.caveEntryY = fromY;
+    // Regenerate town layout based on town index (0-3 cycle)
+    this.town = new Town(townIndex % 4);
     if (this.party) this.saveSystem.save(this.getSaveData());
     this.setState(GAME_STATES.TOWN, { townIndex, fromX, fromY });
   }

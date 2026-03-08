@@ -26,7 +26,7 @@ export class TownUI {
     this.townReturnX = (data && data.fromX != null) ? data.fromX : this.game.overworldX;
     this.townReturnY = (data && data.fromY != null) ? data.fromY : this.game.overworldY;
 
-    this.message = `Welcome to ${this.townName}! Walk to buildings to enter. ESC to leave.`;
+    this.message = `Welcome to ${this.townName}! Walk to buildings to enter. Walk off the edge to leave.`;
     this.messageTimer = 3;
   }
 
@@ -59,6 +59,11 @@ export class TownUI {
       this.moveDelay = 0.15;
       const nx = this.playerX + dx, ny = this.playerY + dy;
       const town = this.game.town;
+      // Walk off the perimeter → leave town
+      if (nx < 0 || nx >= town.width || ny < 0 || ny >= town.height) {
+        this._leaveTown();
+        return;
+      }
       const building = town.getBuildingAt(nx, ny);
       if (building) {
         this._enterBuilding(building);
@@ -96,9 +101,6 @@ export class TownUI {
       this._openInn();
     } else if (building.id === 'crafting') {
       this.game.openCrafting();
-    } else if (building.id === 'dungeon') {
-      // The dungeon is now accessed from the overworld — this building now acts as the town exit
-      this._leaveTown();
     } else if (building.id === 'party_mgmt') {
       this.game.openInventory('TOWN');
     } else {
@@ -264,7 +266,7 @@ export class TownUI {
 
       // Sign above door
       const signW = Math.min(bw - 8, 60);
-      const signLabel = b.id === 'dungeon' ? 'Leave Town' : b.name;
+      const signLabel = b.name;
       r.drawRoundRect(sx + bw / 2 - signW / 2, sy + ts * 0.55, signW, 14, 2, '#3a2510', '#aa8833', 1);
       r.drawTextCentered(signLabel, sx + bw / 2, sy + ts * 0.56, '#ffe0a0', 9, 'monospace', true);
     });
@@ -413,6 +415,6 @@ export class TownUI {
     r.drawRoundRect(W/2 - 120, 8, 240, 28, 6, 'rgba(0,0,0,0.7)', '#5544aa', 1);
     r.drawTextCentered(this.townName, W/2, 14, '#ccaaff', 16, 'monospace', true);
     // Controls hint
-    r.drawText('WASD: Move  Enter: Interact  I: Inventory  ESC: Leave Town', 10, H-30, '#555566', 13);
+    r.drawText('WASD: Move  Enter: Interact  I: Inventory  (walk to edge to leave)', 10, H-30, '#555566', 13);
   }
 }
