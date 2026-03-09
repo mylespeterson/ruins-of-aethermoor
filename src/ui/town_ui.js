@@ -184,91 +184,134 @@ export class TownUI {
       }
     }
 
-    // Draw buildings (SNES-style with more detail)
+    // Draw buildings
     town.buildings.forEach(b => {
       const sx = b.x * ts - camX, sy = b.y * ts - camY;
       const bw = b.w * ts, bh = b.h * ts;
       if (sx + bw < -ts || sx > W + ts || sy + bh < -ts || sy > H + ts) return;
 
-      // Foundation/shadow
-      r.drawRect(sx + 3, sy + bh - 4, bw - 3, 6, 'rgba(0,0,0,0.25)');
+      // Ground shadow
+      ctx.save(); ctx.globalAlpha = 0.22;
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(sx + 4, sy + bh - 2, bw - 4, 7);
+      ctx.restore();
 
       // Main building walls
-      r.drawRoundRect(sx + 1, sy + ts * 0.55, bw - 2, bh - ts * 0.55 - 1, 3, b.color, '#000000', 1);
+      r.drawRoundRect(sx + 1, sy + ts * 0.55, bw - 2, bh - ts * 0.55 - 1, 4, b.color, '#000000', 1.5);
 
-      // Windows
-      const winColor = '#ffe8a0';
-      const winRows = Math.max(1, Math.floor((bh - ts * 0.8) / (ts * 0.6)));
-      const winCols = Math.max(1, Math.floor((bw - ts * 0.4) / (ts * 0.7)));
+      // Wall highlight (top edge lighter)
+      ctx.save(); ctx.globalAlpha = 0.18;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(sx + 2, sy + ts * 0.56, bw - 4, 5);
+      ctx.restore();
+
+      // Windows with animated glow
+      const winGlow = 0.6 + 0.4 * Math.sin(this.animTime * 1.2 + b.x);
+      const winColor = `rgba(255,232,140,${winGlow})`;
+      const winW = 10, winH = 12;
+      const winRows = Math.max(1, Math.floor((bh - ts * 0.9) / (ts * 0.55)));
+      const winCols = Math.max(1, Math.floor((bw - ts * 0.5) / (ts * 0.65)));
       for (let wr = 0; wr < winRows; wr++) {
         for (let wc = 0; wc < winCols; wc++) {
-          const wx = sx + ts * 0.3 + wc * (ts * 0.7);
-          const wy = sy + ts * 0.75 + wr * (ts * 0.58);
-          if (wx + 10 < sx + bw - 4 && wy + 12 < sy + bh - 4) {
-            r.drawRect(wx, wy, 10, 12, '#1a1a2a');
-            r.drawRect(wx + 1, wy + 1, 8, 5, winColor);
-            r.drawRect(wx + 4, wy + 1, 1, 10, 'rgba(0,0,0,0.3)');
-            r.drawRect(wx + 1, wy + 6, 8, 1, 'rgba(0,0,0,0.3)');
+          const wx = sx + ts * 0.28 + wc * (ts * 0.65);
+          const wy = sy + ts * 0.72 + wr * (ts * 0.55);
+          if (wx + winW < sx + bw - 6 && wy + winH < sy + bh - 6) {
+            // Window frame
+            r.drawRect(wx - 1, wy - 1, winW + 2, winH + 2, '#1a1426');
+            // Window glow
+            r.drawRect(wx, wy, winW, winH, '#0a0810');
+            r.drawRect(wx + 1, wy + 1, winW - 2, 5, winColor);
+            r.drawRect(wx + 1, wy + 7, winW - 2, 4, `rgba(255,200,80,${winGlow * 0.7})`);
+            // Cross dividers
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 0.8;
+            ctx.beginPath(); ctx.moveTo(wx + winW/2, wy); ctx.lineTo(wx + winW/2, wy + winH); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(wx, wy + winH/2); ctx.lineTo(wx + winW, wy + winH/2); ctx.stroke();
           }
         }
       }
 
       // Door
-      const doorW = Math.min(18, bw * 0.25);
-      const doorH = ts * 0.65;
+      const doorW = Math.max(12, Math.min(18, bw * 0.22));
+      const doorH = ts * 0.6;
       const doorX = sx + bw / 2 - doorW / 2;
       const doorY = sy + bh - doorH - 1;
-      r.drawRect(doorX, doorY, doorW, doorH, '#2a1505');
-      r.drawRoundRect(doorX + 1, doorY + 1, doorW - 2, doorH - 4, 3, '#3d2008', null, 0);
+      // Door frame
+      r.drawRect(doorX - 2, doorY - 1, doorW + 4, doorH + 2, '#1a0a00');
+      // Door panel
+      r.drawRoundRect(doorX, doorY, doorW, doorH, 3, '#3a1a08', null, 0);
+      r.drawRoundRect(doorX + 2, doorY + 2, doorW - 4, doorH * 0.55, 2, '#4d2510', null, 0);
       // Door knob
-      r.drawRect(doorX + doorW * 0.6, doorY + doorH * 0.45, 3, 3, '#ccaa44');
+      r.drawRect(doorX + doorW * 0.62, doorY + doorH * 0.48, 3, 3, '#ddcc66');
 
-      // SNES-style pitched roof
+      // Arched window above door
+      ctx.save(); ctx.globalAlpha = winGlow * 0.7;
+      ctx.fillStyle = '#ffe880';
+      ctx.beginPath();
+      ctx.arc(sx + bw/2, doorY - 3, doorW * 0.4, Math.PI, 0);
+      ctx.lineTo(doorX + doorW, doorY - 3);
+      ctx.lineTo(doorX, doorY - 3);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+
+      // Pitched roof
       const roofH = ts * 0.65;
       ctx.beginPath();
-      ctx.moveTo(sx - 3, sy + roofH + 2);         // left eave
-      ctx.lineTo(sx + bw / 2, sy - 2);            // peak
-      ctx.lineTo(sx + bw + 3, sy + roofH + 2);    // right eave
-      ctx.lineTo(sx + bw + 3, sy + roofH + ts * 0.15);
-      ctx.lineTo(sx - 3, sy + roofH + ts * 0.15);
+      ctx.moveTo(sx - 4, sy + roofH + 2);
+      ctx.lineTo(sx + bw / 2, sy - 3);
+      ctx.lineTo(sx + bw + 4, sy + roofH + 2);
+      ctx.lineTo(sx + bw + 4, sy + roofH + ts * 0.18);
+      ctx.lineTo(sx - 4, sy + roofH + ts * 0.18);
       ctx.closePath();
       ctx.fillStyle = b.roofColor;
       ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+      // Roof shingles (subtle lines)
+      ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 1;
+      for (let si = 0; si < 4; si++) {
+        const t2 = si / 4;
+        const lx1 = sx + (bw/2 - bw/2*t2) - 4*(1-t2);
+        const ly1 = sy + roofH * (1 - t2) + 2;
+        const lx2 = sx + (bw/2 + bw/2*t2) + 4*(1-t2);
+        ctx.beginPath(); ctx.moveTo(lx1, ly1); ctx.lineTo(lx2, ly1); ctx.stroke();
+      }
       // Roof ridge highlight
+      ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(sx + bw * 0.25, sy + roofH * 0.5 + 2);
-      ctx.lineTo(sx + bw / 2, sy - 2);
-      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-      ctx.lineWidth = 1;
+      ctx.moveTo(sx + bw * 0.28, sy + roofH * 0.48 + 2);
+      ctx.lineTo(sx + bw / 2, sy - 3);
       ctx.stroke();
 
-      // Chimney on some buildings
+      // Chimney on inn/crafting
       if (b.id === 'inn' || b.id === 'crafting') {
-        const chX = sx + bw * 0.75;
-        const chY = sy + roofH * 0.3;
-        r.drawRect(chX, chY, 8, roofH * 0.5, '#5a3a2a');
-        r.drawRect(chX - 2, chY, 12, 5, '#6a4a3a');
-        // Smoke puffs
+        const chX = sx + bw * 0.72;
+        const chY = sy + roofH * 0.28;
+        r.drawRect(chX, chY, 8, roofH * 0.55, '#5a3a2a');
+        r.drawRect(chX - 2, chY, 12, 5, '#7a4a3a');
         for (let s = 0; s < 3; s++) {
-          const puff = (this.animTime * 0.5 + s * 0.4) % 1.0;
-          ctx.globalAlpha = (1 - puff) * 0.5;
+          const puff = (this.animTime * 0.4 + s * 0.4) % 1.0;
+          ctx.globalAlpha = (1 - puff) * 0.45;
           ctx.fillStyle = '#cccccc';
           ctx.beginPath();
-          ctx.arc(chX + 4 + Math.sin(this.animTime + s) * 4,
-                  chY - puff * 20, 4 + puff * 4, 0, Math.PI * 2);
+          ctx.arc(chX + 4 + Math.sin(this.animTime + s) * 5, chY - puff * 18, 4 + puff * 4, 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.globalAlpha = 1;
       }
 
+      // Building icon on roof
+      const iconX = sx + bw / 2, iconY = sy + ts * 0.35;
+      if (b.icon) {
+        ctx.save();
+        ctx.font = `${Math.min(14, ts * 0.45)}px serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(b.icon, iconX, iconY);
+        ctx.restore();
+      }
+
       // Sign above door
-      const signW = Math.min(bw - 8, 60);
-      const signLabel = b.name;
-      r.drawRoundRect(sx + bw / 2 - signW / 2, sy + ts * 0.55, signW, 14, 2, '#3a2510', '#aa8833', 1);
-      r.drawTextCentered(signLabel, sx + bw / 2, sy + ts * 0.56, '#ffe0a0', 9, 'monospace', true);
+      const signW = Math.min(bw - 4, 58);
+      r.drawRoundRect(sx + bw/2 - signW/2, sy + ts * 0.56, signW, 14, 2, '#3a2510', '#cc9944', 1);
+      r.drawTextCentered(b.name, sx + bw/2, sy + ts * 0.57, '#ffe0a0', 9, 'monospace', true);
     });
 
     // Draw trees (SNES-style sprite trees)

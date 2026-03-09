@@ -13,6 +13,7 @@ const POPUP_ITEM_H  = 46;           // item row height (including gap)
 const POPUP_HEADER  = 38;           // space for title inside popup
 const POPUP_FOOTER  = 24;           // space for hint text inside popup
 const MAX_LOG_LINES = 6;            // battle log lines kept in memory
+const ATTACK_ANIMATION_DURATION = 0.35; // seconds for attack lunge animation
 
 export class BattleUI {
   constructor(game) {
@@ -127,7 +128,7 @@ export class BattleUI {
 
     // Advance attack animation
     if (this.attackAnim) {
-      this.attackAnim.progress += dt / 0.35; // animation duration 0.35s
+      this.attackAnim.progress += dt / ATTACK_ANIMATION_DURATION;
       if (this.attackAnim.progress >= 1) {
         // Animation complete — resolve the queued result
         const res = this.attackAnim.result;

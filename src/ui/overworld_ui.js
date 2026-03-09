@@ -165,8 +165,6 @@ export class OverworldUI {
 
   _triggerEncounter(tileType) {
     // Pick enemies based on overworld tile type for variety
-    const { Enemy } = this._getEnemyModule();
-    // Tile-to-enemy-type mapping: select thematic overworld enemies
     const AREA_ENEMIES = {
       [OTILE.GRASS]:      ['giant_rat','goblin_scout','green_slime','cave_bat'],
       [OTILE.DEEP_GRASS]: ['goblin_scout','green_slime','shadow_wolf','giant_rat'],
@@ -178,20 +176,11 @@ export class OverworldUI {
     const enemies = [];
     for (let i = 0; i < count; i++) {
       const id = ENEMY_IDS[Math.floor(Math.random() * ENEMY_IDS.length)];
-      try { enemies.push(new Enemy(id, 1)); } catch(e) { /* skip */ }
+      try { enemies.push(new Enemy(id, 1)); } catch(e) { /* skip unknown id */ }
     }
     if (enemies.length > 0) {
       this.game.startBattle(enemies, false);
     }
-  }
-
-  _getEnemyModule() {
-    // Inline import cache
-    if (!this._enemyCls) {
-      // Enemy is imported at top of file
-      this._enemyCls = Enemy;
-    }
-    return { Enemy: this._enemyCls };
   }
 
   // ── Rendering ─────────────────────────────────────────────────────────────
