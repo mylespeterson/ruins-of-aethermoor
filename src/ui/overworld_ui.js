@@ -1,12 +1,9 @@
-import { OTILE, OTILE_WALKABLE, OTILE_WALL_H, OTILE_COLOR, OTILE_NAME } from '../world/overworld_tile.js';
+import { OTILE, OTILE_WALKABLE, OTILE_COLOR, OTILE_NAME } from '../world/overworld_tile.js';
 import { OverworldGenerator, TOWN_DATA, CAVE_DATA, SPECIAL_DATA } from '../world/overworld_generator.js';
 import { Enemy } from '../entities/enemy.js';
 
-// Isometric tile dimensions (screen pixels)
-const TW   = 64;   // full tile width  (diamond width)
-const TH   = 32;   // full tile height (diamond height, before walls)
-const HW   = TW / 2;
-const HH   = TH / 2;
+// Top-down tile size (matches town view)
+const TS = 32;
 
 export class OverworldUI {
   constructor(game) {
@@ -21,6 +18,7 @@ export class OverworldUI {
     this.visitedSpecials    = new Set();
     this._pendingActionKey  = null;
     this.showMinimap        = true;
+    this.facing = 'down';
   }
 
   onEnter(data) {
@@ -61,7 +59,7 @@ export class OverworldUI {
     const { dx, dy } = input.getMoveDir();
     if (dx !== 0 || dy !== 0) this._tryMove(dx, dy);
 
-    // Click-to-move (tap nearest reachable adjacent tile)
+    // Click-to-move
     if (input.wasClicked()) {
       this._handleClick({ x: input.mouse.x, y: input.mouse.y });
     }
@@ -76,6 +74,12 @@ export class OverworldUI {
     const tile = ow.grid[ny][nx];
     if (!OTILE_WALKABLE[tile]) { this.moveDelay = 0.08; return; }
 
+    // Update facing direction
+    if (dy < 0) this.facing = 'up';
+    else if (dy > 0) this.facing = 'down';
+    else if (dx < 0) this.facing = 'left';
+    else if (dx > 0) this.facing = 'right';
+
     this.game.overworldX = nx;
     this.game.overworldY = ny;
     this.moveDelay = 0.14;
@@ -84,10 +88,10 @@ export class OverworldUI {
     this.gen.updateFogOfWar(ow.fog, nx, ny);
     this._checkTile(nx, ny, tile);
 
-    // Random overworld encounter — roughly 1 per 20-30 steps
+    // Random overworld encounter — roughly 1 per 20-30 steps, tile-based enemy selection
     if (this.stepCounter % (20 + Math.floor(Math.random() * 11)) === 0 &&
         (tile === OTILE.GRASS || tile === OTILE.DEEP_GRASS || tile === OTILE.FOREST || tile === OTILE.SAND)) {
-      this._triggerEncounter(1);  // low-level overworld monsters
+      this._triggerEncounter(tile);
     }
   }
 
@@ -104,7 +108,7 @@ export class OverworldUI {
       const idx = ow.caves.findIndex(c => c.x === x && c.y === y);
       const caveIdx = idx >= 0 ? idx : 0;
       const data = CAVE_DATA[caveIdx] || CAVE_DATA[0];
-      this.message = `Entering ${data.name}…`;
+      this.message = `Entering ${data.name}...`;
       this.messageTimer = 1;
       setTimeout(() => this.game.enterCave(caveIdx, x, y), 600);
 
@@ -119,16 +123,18 @@ export class OverworldUI {
   }
 
   _handleClick(pos) {
-    // Translate screen click to nearest adjacent direction
     const W = this.game.canvas.width, H = this.game.canvas.height;
     const px = this.game.overworldX, py = this.game.overworldY;
-    const [sx, sy] = this._tileToScreen(px, py, W, H);
-    const relX = pos.x - sx, relY = pos.y - sy;
-    // Dominant axis determines movement direction
-    if (Math.abs(relX) > Math.abs(relY)) {
-      this._tryMove(relX > 0 ? 1 : -1, 0);
+    const camX = px * TS - W / 2 + TS / 2;
+    const camY = py * TS - H / 2 + TS / 2;
+    const tx = Math.floor((pos.x + camX) / TS);
+    const ty = Math.floor((pos.y + camY) / TS);
+    const ddx = Math.sign(tx - px);
+    const ddy = Math.sign(ty - py);
+    if (Math.abs(tx - px) > Math.abs(ty - py)) {
+      if (ddx !== 0) this._tryMove(ddx, 0);
     } else {
-      this._tryMove(0, relY > 0 ? 1 : -1);
+      if (ddy !== 0) this._tryMove(0, ddy);
     }
   }
 
@@ -141,7 +147,6 @@ export class OverworldUI {
     party.inventory.addItem(item, 1);
     this.message = `Hidden treasure! Found ${gold}g and ${item.replace(/_/g,' ')}!`;
     this.messageTimer = 3;
-    // Remove from grid visually
     this.game.overworld.grid[y][x] = OTILE.GRASS;
   }
 
@@ -158,9 +163,21 @@ export class OverworldUI {
     this.messageTimer = 5;
   }
 
-  _triggerEncounter(floorHint) {
-    const floor = Math.max(1, Math.min(5, floorHint)); // overworld = low-level
-    const enemies = Enemy.generateEncounter(floor, false);
+  _triggerEncounter(tileType) {
+    // Pick enemies based on overworld tile type for variety
+    const AREA_ENEMIES = {
+      [OTILE.GRASS]:      ['giant_rat','goblin_scout','green_slime','cave_bat'],
+      [OTILE.DEEP_GRASS]: ['goblin_scout','green_slime','shadow_wolf','giant_rat'],
+      [OTILE.FOREST]:     ['shadow_wolf','cave_bat','green_slime','goblin_scout'],
+      [OTILE.SAND]:       ['giant_rat','red_slime','blue_slime','cave_bat'],
+    };
+    const ENEMY_IDS = AREA_ENEMIES[tileType] || AREA_ENEMIES[OTILE.GRASS];
+    const count = 1 + Math.floor(Math.random() * 3);
+    const enemies = [];
+    for (let i = 0; i < count; i++) {
+      const id = ENEMY_IDS[Math.floor(Math.random() * ENEMY_IDS.length)];
+      try { enemies.push(new Enemy(id, 1)); } catch(e) { /* skip unknown id */ }
+    }
     if (enemies.length > 0) {
       this.game.startBattle(enemies, false);
     }
@@ -172,276 +189,186 @@ export class OverworldUI {
     const W = r.width, H = r.height;
     const ow = this.game.overworld;
     if (!ow) {
-      r.drawTextCentered('Generating world…', W / 2, H / 2, '#fff', 24);
+      r.drawTextCentered('Generating world...', W / 2, H / 2, '#fff', 24);
       return;
     }
 
-    // Sky gradient background
-    r.ctx.save();
-    const sky = r.ctx.createLinearGradient(0, 0, 0, H * 0.6);
-    sky.addColorStop(0, '#1a1040');
-    sky.addColorStop(1, '#2a3060');
-    r.ctx.fillStyle = sky;
-    r.ctx.fillRect(0, 0, W, H);
-    r.ctx.restore();
-
-    // Distant horizon fog strip
-    r.ctx.save();
-    r.ctx.globalAlpha = 0.3;
-    r.drawRect(0, H * 0.35, W, H * 0.15, '#6688aa');
-    r.ctx.restore();
-
-    this._renderIsoWorld(r, W, H, ow);
-    this._renderMinimap(r, W, H, ow);
-    this._renderHUD(r, W, H, ow);
-  }
-
-  /** Convert tile grid position → screen pixel position (isometric) */
-  _tileToScreen(tx, ty, W, H) {
     const px = this.game.overworldX, py = this.game.overworldY;
-    // Camera follows player; player always appears near centre
-    const camOffX = (px - py) * HW;
-    const camOffY = (px + py) * HH;
-    const sx = (tx - ty) * HW + W / 2 - camOffX;
-    const sy = (tx + ty) * HH + H * 0.45 - camOffY;
-    return [sx, sy];
-  }
-
-  _renderIsoWorld(r, W, H, ow) {
+    const camX = px * TS - W / 2 + TS / 2;
+    const camY = py * TS - H / 2 + TS / 2;
     const ctx = r.ctx;
 
-    // Painter's algorithm: render from farthest (smallest tx+ty) to nearest
-    for (let d = 0; d < ow.width + ow.height - 1; d++) {
-      for (let tx = Math.max(0, d - ow.height + 1); tx <= Math.min(d, ow.width - 1); tx++) {
-        const ty = d - tx;
-        if (ty < 0 || ty >= ow.height) continue;
+    // Background
+    r.drawRect(0, 0, W, H, '#1a2a10');
+
+    // Draw terrain tiles (top-down, same as town view)
+    for (let ty = 0; ty < ow.height; ty++) {
+      for (let tx = 0; tx < ow.width; tx++) {
+        const sx = tx * TS - camX;
+        const sy = ty * TS - camY;
+        if (sx < -TS || sx > W || sy < -TS || sy > H) continue;
 
         const fog = ow.fog[ty]?.[tx] ?? 0;
-        if (fog === 0) continue;     // unexplored: invisible
-
-        const [sx, sy] = this._tileToScreen(tx, ty, W, H);
-
-        // Coarse frustum cull
-        if (sx < -TW - 60 || sx > W + TW || sy < -TH - 60 || sy > H + 80) continue;
+        if (fog === 0) {
+          // Completely unexplored: dark
+          r.drawRect(sx, sy, TS, TS, '#050a05');
+          continue;
+        }
 
         const tile = ow.grid[ty][tx];
-        const col  = OTILE_COLOR[tile] || OTILE_COLOR[OTILE.GRASS];
-        const wallH = OTILE_WALL_H[tile] || 6;
-        const alpha = fog === 1 ? 0.45 : 1.0;
-
         ctx.save();
-        ctx.globalAlpha = alpha;
-        this._drawIsoTile(ctx, sx, sy, wallH, col.top, col.left, col.right, tile);
+        if (fog === 1) ctx.globalAlpha = 0.5;
+        this._drawTopDownTile(r, ctx, sx, sy, tx, ty, tile);
         ctx.restore();
       }
     }
 
-    // Draw player sprite on top
-    this._renderPlayer(r, W, H);
+    // Player sprite
+    this._renderTopDownPlayer(r, ctx, W, H, camX, camY);
+
+    this._renderMinimap(r, W, H, ow);
+    this._renderHUD(r, W, H, ow);
   }
 
-  /** Draw one isometric tile as a 3-faced cube */
-  _drawIsoTile(ctx, sx, sy, wallH, topCol, leftCol, rightCol, tileType) {
-    // Top face — diamond shape
-    ctx.beginPath();
-    ctx.moveTo(sx,       sy);           // north
-    ctx.lineTo(sx + HW,  sy + HH);      // east
-    ctx.lineTo(sx,       sy + TH);      // south
-    ctx.lineTo(sx - HW,  sy + HH);      // west
-    ctx.closePath();
-    ctx.fillStyle = topCol;
-    ctx.fill();
+  _drawTopDownTile(r, ctx, sx, sy, tx, ty, tileType) {
+    const col = OTILE_COLOR[tileType] || OTILE_COLOR[OTILE.GRASS];
+    r.drawRect(sx, sy, TS, TS, col.top || '#2d5a1a');
 
-    if (wallH > 0) {
-      // Left face (south-west wall)
-      ctx.beginPath();
-      ctx.moveTo(sx - HW, sy + HH);
-      ctx.lineTo(sx,      sy + TH);
-      ctx.lineTo(sx,      sy + TH + wallH);
-      ctx.lineTo(sx - HW, sy + HH + wallH);
-      ctx.closePath();
-      ctx.fillStyle = leftCol;
-      ctx.fill();
-
-      // Right face (south-east wall)
-      ctx.beginPath();
-      ctx.moveTo(sx + HW, sy + HH);
-      ctx.lineTo(sx,      sy + TH);
-      ctx.lineTo(sx,      sy + TH + wallH);
-      ctx.lineTo(sx + HW, sy + HH + wallH);
-      ctx.closePath();
-      ctx.fillStyle = rightCol;
-      ctx.fill();
-    }
-
-    // Outline for visual separation
-    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+    // Subtle tile border
+    ctx.strokeStyle = 'rgba(0,0,0,0.08)';
     ctx.lineWidth = 0.5;
-    ctx.beginPath();
-    ctx.moveTo(sx,       sy);
-    ctx.lineTo(sx + HW,  sy + HH);
-    ctx.lineTo(sx,       sy + TH);
-    ctx.lineTo(sx - HW,  sy + HH);
-    ctx.closePath();
-    ctx.stroke();
+    ctx.strokeRect(sx, sy, TS, TS);
 
-    // Decorative overlays for special tiles
-    this._drawTileDecal(ctx, sx, sy, tileType);
+    // Decorative overlays
+    this._drawTopDownDecal(r, ctx, sx, sy, tileType);
   }
 
-  /** Extra decorations drawn on top of the base tile */
-  _drawTileDecal(ctx, sx, sy, tileType) {
-    const cy = sy + HH;      // vertical centre of top face
-    const t  = this.animTime;
+  _drawTopDownDecal(r, ctx, sx, sy, tileType) {
+    const t = this.animTime;
+    const cx = sx + TS / 2, cy = sy + TS / 2;
 
     if (tileType === OTILE.FOREST) {
-      // Tree canopy
-      ctx.beginPath();
-      ctx.moveTo(sx, sy - 22);
-      ctx.lineTo(sx - 14, sy + HH - 2);
-      ctx.lineTo(sx + 14, sy + HH - 2);
-      ctx.closePath();
+      // Tree canopy (top-down circle)
       ctx.fillStyle = '#1a5c14';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(sx, sy - 32);
-      ctx.lineTo(sx - 10, sy - 8);
-      ctx.lineTo(sx + 10, sy - 8);
-      ctx.closePath();
+      ctx.beginPath(); ctx.arc(cx, cy, TS * 0.38, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#205c1a';
-      ctx.fill();
-
-    } else if (tileType === OTILE.TOWN) {
-      // Mini building silhouette
-      ctx.fillStyle = '#3a2860';
-      ctx.fillRect(sx - 10, sy - 18, 20, 20);
-      ctx.fillStyle = '#553388';
-      ctx.fillRect(sx - 8,  sy - 16, 16, 14);
-      // Roof triangle
-      ctx.beginPath();
-      ctx.moveTo(sx, sy - 22);
-      ctx.lineTo(sx - 12, sy - 18);
-      ctx.lineTo(sx + 12, sy - 18);
-      ctx.closePath();
-      ctx.fillStyle = '#aa66ff';
-      ctx.fill();
-      // Animated window glow
-      const glow = 0.5 + 0.5 * Math.sin(t * 1.5 + sx * 0.1);
-      ctx.globalAlpha *= (0.7 + glow * 0.3);
-      ctx.fillStyle = '#ffe880';
-      ctx.fillRect(sx - 4,  sy - 12, 5, 5);
-      ctx.fillRect(sx + 1,  sy - 12, 5, 5);
-      // globalAlpha intentionally left at the modified value (ctx.restore() will reset it)
-
-    } else if (tileType === OTILE.CAVE) {
-      // Cave arch
-      ctx.fillStyle = '#0d0a08';
-      ctx.beginPath();
-      ctx.ellipse(sx, sy + 2, 14, 10, 0, Math.PI, 0, true);
-      ctx.fill();
-      ctx.fillStyle = '#1a120e';
-      ctx.beginPath();
-      ctx.ellipse(sx, sy + 2, 10, 7, 0, Math.PI, 0, true);
-      ctx.fill();
-      // Stalactites
-      [sx - 6, sx, sx + 6].forEach(cx => {
-        ctx.fillStyle = '#403028';
-        ctx.beginPath();
-        ctx.moveTo(cx - 2, sy - 8);
-        ctx.lineTo(cx + 2, sy - 8);
-        ctx.lineTo(cx,     sy - 2);
-        ctx.closePath();
-        ctx.fill();
-      });
+      ctx.beginPath(); ctx.arc(cx - 4, cy - 4, TS * 0.22, 0, Math.PI * 2); ctx.fill();
+      // Highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.beginPath(); ctx.arc(cx - 5, cy - 6, TS * 0.10, 0, Math.PI * 2); ctx.fill();
 
     } else if (tileType === OTILE.MOUNTAIN || tileType === OTILE.SNOW_MOUNTAIN) {
-      // Mountain peak
+      const snowColor = tileType === OTILE.SNOW_MOUNTAIN ? '#e8eeff' : '#a09080';
+      const darkColor = tileType === OTILE.SNOW_MOUNTAIN ? '#c0c8e8' : '#706060';
+      ctx.fillStyle = darkColor;
       ctx.beginPath();
-      ctx.moveTo(sx, sy - 38);
-      ctx.lineTo(sx - 18, sy + HH);
-      ctx.lineTo(sx + 18, sy + HH);
-      ctx.closePath();
-      ctx.fillStyle = tileType === OTILE.SNOW_MOUNTAIN ? '#d8d0e8' : '#706060';
-      ctx.fill();
-      if (tileType === OTILE.SNOW_MOUNTAIN) {
-        ctx.beginPath();
-        ctx.moveTo(sx, sy - 38);
-        ctx.lineTo(sx - 8, sy - 22);
-        ctx.lineTo(sx + 8, sy - 22);
-        ctx.closePath();
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
-      }
+      ctx.moveTo(cx, sy + 3); ctx.lineTo(sx + TS - 4, sy + TS - 4); ctx.lineTo(sx + 4, sy + TS - 4);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = snowColor;
+      ctx.beginPath();
+      ctx.moveTo(cx, sy + 3); ctx.lineTo(cx + 7, sy + 14); ctx.lineTo(cx - 7, sy + 14);
+      ctx.closePath(); ctx.fill();
 
-    } else if (tileType === OTILE.SPECIAL) {
-      // Ancient pillar ruins
-      const pulse = 0.6 + 0.4 * Math.abs(Math.sin(t * 0.8));
-      ctx.fillStyle = `rgba(200,168,32,${pulse})`;
-      ctx.fillRect(sx - 6,  sy - 20, 6, 20);
-      ctx.fillRect(sx + 2,  sy - 14, 5, 14);
-      ctx.fillRect(sx - 8,  sy - 22, 10, 4);
-      ctx.fillStyle = '#c8a820';
-      ctx.beginPath();
-      ctx.arc(sx, sy - 24, 4, 0, Math.PI * 2);
-      ctx.fill();
+    } else if (tileType === OTILE.TOWN) {
+      // Mini building (top-down)
+      ctx.fillStyle = '#3a2860';
+      ctx.fillRect(sx + 5, sy + 5, TS - 10, TS - 10);
+      ctx.fillStyle = '#553388';
+      ctx.fillRect(sx + 7, sy + 7, TS - 14, TS - 14);
+      const glow = 0.5 + 0.5 * Math.sin(t * 1.5 + sx * 0.1);
+      ctx.globalAlpha *= (0.8 + glow * 0.2);
+      ctx.fillStyle = '#ffe880';
+      ctx.fillRect(sx + 10, sy + 10, 5, 5);
+      ctx.fillRect(sx + 17, sy + 10, 5, 5);
 
-    } else if (tileType === OTILE.TREASURE) {
-      // Glowing chest
-      const shine = 0.7 + 0.3 * Math.sin(t * 2.5);
-      ctx.fillStyle = '#8b6000';
-      ctx.fillRect(sx - 8, sy - 10, 16, 10);
-      ctx.fillStyle = `rgba(255,220,30,${shine})`;
-      ctx.fillRect(sx - 7, sy - 10, 14, 4);
-      ctx.fillStyle = '#ffdd22';
-      ctx.beginPath();
-      ctx.arc(sx, sy - 6, 2, 0, Math.PI * 2);
-      ctx.fill();
+    } else if (tileType === OTILE.CAVE) {
+      ctx.fillStyle = '#0d0a08';
+      ctx.beginPath(); ctx.arc(cx, cy, TS * 0.35, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1a120e';
+      ctx.beginPath(); ctx.arc(cx, cy, TS * 0.22, 0, Math.PI * 2); ctx.fill();
 
     } else if (tileType === OTILE.WATER) {
-      // Animated ripples
       const wave = 0.3 + 0.1 * Math.sin(t * 1.8 + sx * 0.05);
       ctx.strokeStyle = `rgba(100,200,255,${wave})`;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.ellipse(sx, cy, HW * 0.5, HH * 0.35, 0, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, TS * 0.3, 0, Math.PI * 2); ctx.stroke();
+
+    } else if (tileType === OTILE.SPECIAL) {
+      const pulse = 0.6 + 0.4 * Math.abs(Math.sin(t * 0.8));
+      ctx.fillStyle = `rgba(200,168,32,${pulse})`;
+      ctx.fillRect(cx - 3, cy - 10, 6, 10);
+      ctx.fillRect(cx + 3, cy - 7, 4, 7);
+      ctx.fillStyle = '#c8a820';
+      ctx.beginPath(); ctx.arc(cx, cy - 12, 4, 0, Math.PI * 2); ctx.fill();
+
+    } else if (tileType === OTILE.TREASURE) {
+      const shine = 0.7 + 0.3 * Math.sin(t * 2.5);
+      ctx.fillStyle = '#8b6000';
+      ctx.fillRect(sx + 8, sy + 10, TS - 16, TS - 20);
+      ctx.fillStyle = `rgba(255,220,30,${shine})`;
+      ctx.fillRect(sx + 9, sy + 10, TS - 18, 5);
+
+    } else if (tileType === OTILE.SAND) {
+      ctx.fillStyle = 'rgba(220,190,100,0.3)';
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath(); ctx.arc(sx + 8 + i * 9, sy + 14, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx + 12 + i * 9, sy + 22, 2, 0, Math.PI * 2); ctx.fill();
+      }
     }
   }
 
-  _renderPlayer(r, W, H) {
-    const ctx = r.ctx;
+  _renderTopDownPlayer(r, ctx, W, H, camX, camY) {
     const px = this.game.overworldX, py = this.game.overworldY;
-    const [sx, sy] = this._tileToScreen(px, py, W, H);
-    const bob = Math.sin(this.animTime * 3) * 2;
+    const sx = px * TS - camX;
+    const sy = py * TS - camY;
+    const bob = Math.sin(this.animTime * 6) * 1.5;
 
     // Shadow
-    ctx.save();
-    ctx.globalAlpha = 0.35;
+    ctx.save(); ctx.globalAlpha = 0.35;
     ctx.fillStyle = '#000000';
-    ctx.beginPath();
-    ctx.ellipse(sx, sy + TH * 0.85, 12, 6, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.ellipse(sx + TS/2, sy + TS - 5, 8, 4, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
 
-    // Body
+    // Body (tunic)
     ctx.fillStyle = '#4488ff';
-    ctx.fillRect(sx - 8,  sy - 10 + bob, 16, 20);
+    ctx.fillRect(sx + 9, sy + 14 + bob, TS - 18, TS - 24);
+    // Belt
+    ctx.fillStyle = '#aa8833';
+    ctx.fillRect(sx + 9, sy + 22 + bob, TS - 18, 3);
+    // Arms
+    ctx.fillStyle = '#3355bb';
+    ctx.fillRect(sx + 4, sy + 14 + bob, 5, TS - 27);
+    ctx.fillRect(sx + TS - 9, sy + 14 + bob, 5, TS - 27);
+    // Neck
+    ctx.fillStyle = '#ffcc99';
+    ctx.fillRect(sx + TS/2 - 3, sy + 9 + bob, 6, 5);
     // Head
     ctx.fillStyle = '#ffcc99';
+    ctx.beginPath(); ctx.ellipse(sx + TS/2, sy + 7 + bob, 7, 8, 0, 0, Math.PI * 2); ctx.fill();
+    // Hair
+    ctx.fillStyle = '#553322';
+    ctx.fillRect(sx + TS/2 - 7, sy + 1 + bob, 14, 5);
+    // Eyes
+    ctx.fillStyle = '#222222';
+    ctx.fillRect(sx + TS/2 - 4, sy + 6 + bob, 2, 2);
+    ctx.fillRect(sx + TS/2 + 2, sy + 6 + bob, 2, 2);
+    // Direction arrow
+    ctx.fillStyle = '#aabbff';
     ctx.beginPath();
-    ctx.arc(sx, sy - 16 + bob, 8, 0, Math.PI * 2);
-    ctx.fill();
-    // Glow aura
-    ctx.save();
-    ctx.globalAlpha = 0.25;
-    ctx.fillStyle = '#4488ff';
-    ctx.beginPath();
-    ctx.arc(sx, sy - 8 + bob, 20, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    if (this.facing === 'down') {
+      ctx.moveTo(sx + 10, sy + TS - 4 + bob); ctx.lineTo(sx + TS/2, sy + TS + 3 + bob); ctx.lineTo(sx + TS - 10, sy + TS - 4 + bob);
+    } else if (this.facing === 'up') {
+      ctx.moveTo(sx + 10, sy + 4 + bob); ctx.lineTo(sx + TS/2, sy - 3 + bob); ctx.lineTo(sx + TS - 10, sy + 4 + bob);
+    } else if (this.facing === 'left') {
+      ctx.moveTo(sx + 4, sy + 10 + bob); ctx.lineTo(sx - 3, sy + TS/2 + bob); ctx.lineTo(sx + 4, sy + TS - 10 + bob);
+    } else {
+      ctx.moveTo(sx + TS - 4, sy + 10 + bob); ctx.lineTo(sx + TS + 3, sy + TS/2 + bob); ctx.lineTo(sx + TS - 4, sy + TS - 10 + bob);
+    }
+    ctx.closePath(); ctx.fill();
   }
 
   _renderMinimap(r, W, H, ow) {
+    if (!this.showMinimap) return;
     const mmSize = 140, mmTileSize = 2.5;
     const mmX = W - mmSize - 10, mmY = 10;
     r.drawRoundRect(mmX - 2, mmY - 2, mmSize + 4, mmSize + 4, 3, 'rgba(0,0,0,0.8)', '#445566', 1);
@@ -459,13 +386,11 @@ export class OverworldUI {
         const tile = ow.grid[gy][gx];
         const col  = OTILE_COLOR[tile]?.top || '#334455';
         const alpha = fog === 1 ? 0.5 : 1;
-        r.ctx.save();
-        r.ctx.globalAlpha = alpha;
+        r.ctx.save(); r.ctx.globalAlpha = alpha;
         r.drawRect(mmX + tx * mmTileSize, mmY + ty * mmTileSize, mmTileSize, mmTileSize, col);
         r.ctx.restore();
       }
     }
-    // Player dot
     const pdx = (px - startTX) * mmTileSize + mmX;
     const pdy = (py - startTY) * mmTileSize + mmY;
     r.drawRect(pdx - 1, pdy - 1, mmTileSize + 2, mmTileSize + 2, '#ffffff');
@@ -473,7 +398,6 @@ export class OverworldUI {
   }
 
   _renderHUD(r, W, H, ow) {
-    // Bottom bar
     r.drawRoundRect(0, H - 72, W, 72, 0, 'rgba(0,0,10,0.88)', '#223', 1);
     const party = this.game.party;
     if (party) {
@@ -483,16 +407,14 @@ export class OverworldUI {
         r.drawBar(bx, H - 52, 175, 9, m.hp, m.maxHp, m.hp / m.maxHp < 0.3 ? '#ff4444' : '#44aa44');
         r.drawBar(bx, H - 40, 175, 9, m.mp, m.maxMp, '#4488cc');
       });
-      r.drawText(`💰 ${party.gold}g`, W - 150, H - 68, '#ffdd44', 14, 'left', 'monospace', true);
+      r.drawText(`\uD83D\uDCB0 ${party.gold}g`, W - 150, H - 68, '#ffdd44', 14, 'left', 'monospace', true);
     }
 
-    // Tile label under cursor / current position
     const tile = ow.grid[this.game.overworldY]?.[this.game.overworldX];
     const tileName = OTILE_NAME[tile] || '';
     r.drawText(tileName, W / 2, H - 68, '#aabbcc', 13, 'center', 'monospace', true);
-    r.drawText('WASD:Move  I:Inventory  M:Minimap', W / 2, H - 22, '#445566', 12, 'center');
+    r.drawText('WASD/Arrows: Move  I: Inventory  M: Minimap', W / 2, H - 22, '#445566', 12, 'center');
 
-    // Message overlay
     if (this.messageTimer > 0) {
       const alpha = Math.min(1, this.messageTimer * 2);
       r.ctx.save(); r.ctx.globalAlpha = alpha;

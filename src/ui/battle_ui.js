@@ -13,6 +13,7 @@ const POPUP_ITEM_H  = 46;           // item row height (including gap)
 const POPUP_HEADER  = 38;           // space for title inside popup
 const POPUP_FOOTER  = 24;           // space for hint text inside popup
 const MAX_LOG_LINES = 6;            // battle log lines kept in memory
+const ATTACK_ANIMATION_DURATION = 0.35; // seconds for attack lunge animation
 
 export class BattleUI {
   constructor(game) {
@@ -38,10 +39,9 @@ export class BattleUI {
     this.spellScroll = 0;
     this.itemScroll = 0;
     // Whether the current select_target phase is targeting enemies (vs allies).
-    // We use a boolean flag instead of reference-comparing this.targetList to
-    // this.battle.aliveEnemies, because aliveEnemies is a getter that returns a
-    // new array every call, so === would always be false.
     this.targetIsEnemies = false;
+    // Attack animation state
+    this.attackAnim = null; // { attacker, target, isPlayerAtt, progress, type }
   }
 
   onEnter(data) {
@@ -58,6 +58,7 @@ export class BattleUI {
     this.skillScroll = 0;
     this.spellScroll = 0;
     this.itemScroll = 0;
+    this.attackAnim = null;
     this._syncCurrentActor();
   }
 
@@ -124,6 +125,25 @@ export class BattleUI {
       t.alpha -= dt * 0.8;
       return t.alpha > 0;
     });
+
+    // Advance attack animation
+    if (this.attackAnim) {
+      this.attackAnim.progress += dt / ATTACK_ANIMATION_DURATION;
+      if (this.attackAnim.progress >= 1) {
+        // Animation complete — resolve the queued result
+        const res = this.attackAnim.result;
+        if (res && res.message) this._addLog(res.message);
+        if (res && res.damage && res.target) {
+          const color = res.isCrit ? '#ff8800' : '#ffffff';
+          this._addFloatingText(res.target.name, `-${res.damage}`, color);
+        }
+        this.attackAnim = null;
+        if (this.battle.isOver()) { this.resultTimer = 0; return; }
+        this._syncCurrentActor();
+      }
+      return; // block all input during animation
+    }
+
     if (this.battle.isOver()) {
       this.resultTimer += dt;
       if (this.resultTimer > 1.5 || this.game.input.wasClicked() || this.game.input.isKeyJustPressed('Enter')) {
@@ -137,11 +157,27 @@ export class BattleUI {
     }
     if (this.turnDelay > 0) return;
     if (this.phase === 'enemy_turn') {
-      this.turnDelay = 0.8;
-      this.battle.executeEnemyTurn();
-      this._addLog(this.battle.log[this.battle.log.length - 1] || '');
-      if (this.battle.isOver()) { this.resultTimer = 0; return; }
-      this._syncCurrentActor();
+      this.turnDelay = 0.3; // reduced from 0.8 for snappier enemy turns
+      const actor = this.battle.getCurrentActor();
+      // Start enemy attack animation before executing
+      if (actor && !actor.isPlayer) {
+        const target = this.battle.aliveParty[0];
+        const action = actor.entity.chooseAction ? actor.entity.chooseAction(this.battle.aliveParty) : null;
+        const animTarget = (action && action.target) ? action.target : target;
+        this.attackAnim = { attacker: actor.entity, target: animTarget, isPlayerAtt: false, progress: 0, result: null };
+        // Execute logic now and store result for after anim
+        this.battle.executeEnemyTurn();
+        const lastMsg = this.battle.log[this.battle.log.length - 1];
+        if (this.attackAnim) this.attackAnim.result = { message: lastMsg };
+        if (this.battle.isOver()) {
+          if (this.attackAnim) { this.attackAnim.result = this.attackAnim.result || {}; }
+        }
+      } else {
+        this.battle.executeEnemyTurn();
+        this._addLog(this.battle.log[this.battle.log.length - 1] || '');
+        if (this.battle.isOver()) { this.resultTimer = 0; return; }
+        this._syncCurrentActor();
+      }
       return;
     }
     const input = this.game.input;
@@ -395,6 +431,30 @@ export class BattleUI {
   }
 
   _executeAction(action) {
+    // For attack/skill/spell actions, start animation then resolve
+    const shouldAnimate = (action.type === 'attack' || action.type === 'skill') && action.target;
+    if (shouldAnimate) {
+      const actor = this.battle.getCurrentActor();
+      const attacker = actor ? actor.entity : null;
+      this.attackAnim = {
+        attacker,
+        target: action.target,
+        isPlayerAtt: true,
+        progress: 0,
+        result: null,
+      };
+      // Execute and store result for after animation
+      const result = this.battle.executePlayerAction(action);
+      const lastMsg = this.battle.log[this.battle.log.length - 1];
+      this.attackAnim.result = {
+        message: lastMsg,
+        damage: result && result.damage,
+        target: result && result.target,
+        isCrit: result && result.isCrit,
+      };
+      if (action.type === 'flee' && this.battle.fled) { this.attackAnim = null; return; }
+      return;
+    }
     const result = this.battle.executePlayerAction(action);
     const lastMsg = this.battle.log[this.battle.log.length - 1];
     if (lastMsg) this._addLog(lastMsg);
@@ -448,24 +508,37 @@ export class BattleUI {
       const isSelected = isEnemyTargeting && this.selectedTarget === i;
       const isHovered = this.game.input.isMouseOver(ex - ew / 2 - 8, ey - 8, ew + 16, eh + 55);
 
+      // Attack animation offset for enemy (shake when hit by player)
+      let animOffX = 0, animOffY = 0;
+      if (this.attackAnim && this.attackAnim.isPlayerAtt && this.attackAnim.target === enemy) {
+        const p = this.attackAnim.progress;
+        // Hit flash: shake effect when progress > 0.5
+        if (p > 0.5) {
+          animOffX = Math.sin(p * Math.PI * 8) * 6 * (1 - p);
+        }
+      }
+      // Enemy attacks: enemy lunges forward then returns
+      if (this.attackAnim && !this.attackAnim.isPlayerAtt && this.attackAnim.attacker === enemy) {
+        const p = this.attackAnim.progress;
+        // Lunge left (toward party) then back
+        const lunge = p < 0.5 ? p * 2 : 2 - p * 2;
+        animOffX = -lunge * 40;
+      }
+
       if (isSelected) {
-        // Pulsing glow background
         const pulse = 0.5 + 0.5 * Math.sin(this.animTime * 6);
         r.ctx.save();
         r.ctx.globalAlpha = 0.18 + 0.12 * pulse;
         r.drawRect(ex - ew / 2 - 10, ey - 10, ew + 20, eh + 20, '#ffdd00');
         r.ctx.restore();
-        // Bright animated border
         r.ctx.save();
         r.ctx.shadowBlur = 18 + pulse * 12;
         r.ctx.shadowColor = '#ffee00';
         r.drawRoundRect(ex - ew / 2 - 4, ey - 4, ew + 8, eh + 8, 6, null, '#ffee00', 2 + pulse * 1.5);
         r.ctx.restore();
-        // "▶ TARGET ◀" banner above enemy
         const bannerW = 100;
         r.drawRoundRect(ex - bannerW / 2, ey - 30, bannerW, 22, 4, '#882200', '#ffaa00', 2);
         r.drawTextCentered('▶ TARGET ◀', ex, ey - 28, '#ffffff', 12, 'monospace', true);
-        // Downward triangle pointer
         r.ctx.fillStyle = '#ffaa00';
         r.ctx.beginPath();
         r.ctx.moveTo(ex - 7, ey - 10);
@@ -480,16 +553,21 @@ export class BattleUI {
         r.drawRoundRect(ex - ew / 2, ey, ew, eh, 4, null, '#888888', 1);
       }
 
-      r.drawEnemySprite(enemy, ex - ew / 2, ey, ew, eh, this.animTime);
+      // Hit flash: tint red when taking damage
+      if (this.attackAnim && this.attackAnim.isPlayerAtt && this.attackAnim.target === enemy && this.attackAnim.progress > 0.5) {
+        r.ctx.save();
+        r.ctx.globalAlpha = 0.4 * (1 - (this.attackAnim.progress - 0.5) * 2);
+        r.drawRect(ex - ew / 2 + animOffX, ey + animOffY, ew, eh, '#ff0000');
+        r.ctx.restore();
+      }
 
-      // HP bar — wider for readability
+      r.drawEnemySprite(enemy, ex - ew / 2 + animOffX, ey + animOffY, ew, eh, this.animTime);
+
       r.drawBar(ex - 50, ey + eh + 6, 100, 11, enemy.hp, enemy.maxHp, '#cc3333', '#2a1010', `${enemy.hp}/${enemy.maxHp}`);
 
-      // Enemy name — more prominent, highlighted when selected
       const nameColor = isSelected ? '#ffee44' : '#dddddd';
       r.drawTextCentered(enemy.name, ex, ey + eh + 22, nameColor, isSelected ? 15 : 13, 'monospace', isSelected);
 
-      // Status icons
       enemy.statusEffects.forEach((e, si) => {
         const def = STATUS_EFFECTS[e.id];
         r.drawText(def ? def.icon : '?', ex - 40 + si * 18, ey - 22, '#ffffff', 14);
@@ -511,6 +589,19 @@ export class BattleUI {
       const pw = 70, ph = 85;
       const isActive = this.battle.getCurrentActor()?.entity === member;
       const isTargeted = this.phase === 'select_target' && !this.targetIsEnemies && this.selectedTarget === i;
+
+      // Attack animation: player lunges right when attacking
+      let pAnimOffX = 0, pAnimOffY = 0;
+      if (this.attackAnim && this.attackAnim.isPlayerAtt && this.attackAnim.attacker === member) {
+        const p = this.attackAnim.progress;
+        const lunge = p < 0.5 ? p * 2 : 2 - p * 2;
+        pAnimOffX = lunge * 50;
+      }
+      // Hit flash when taking damage from enemy attack
+      if (this.attackAnim && !this.attackAnim.isPlayerAtt && this.attackAnim.target === member && this.attackAnim.progress > 0.5) {
+        pAnimOffX = Math.sin(this.attackAnim.progress * Math.PI * 8) * 4 * (1 - (this.attackAnim.progress - 0.5) * 2);
+      }
+
       if (isActive) {
         r.ctx.save(); r.ctx.globalAlpha = 0.2;
         r.drawRect(px - 5, py - 5, pw + 10, ph + 10, '#4488ff');
@@ -523,8 +614,15 @@ export class BattleUI {
         r.ctx.restore();
         r.drawRoundRect(px - 5, py - 5, pw + 10, ph + 10, 4, null, '#ffff00', 2);
       }
+      // Hit flash: tint red
+      if (this.attackAnim && !this.attackAnim.isPlayerAtt && this.attackAnim.target === member && this.attackAnim.progress > 0.5) {
+        r.ctx.save();
+        r.ctx.globalAlpha = 0.35 * (1 - (this.attackAnim.progress - 0.5) * 2);
+        r.drawRect(px + pAnimOffX, py, pw, ph, '#ff0000');
+        r.ctx.restore();
+      }
       r.ctx.save(); r.ctx.globalAlpha = member.alive ? 1 : 0.35;
-      r.drawSprite(member.classId, px, py, pw, ph, '#4466cc', this.animTime);
+      r.drawSprite(member.classId, px + pAnimOffX, py + pAnimOffY, pw, ph, '#4466cc', this.animTime);
       r.ctx.restore();
       const infoX = px + pw + 8;
       r.drawText(`${member.name}`, infoX, py, member.alive ? '#ffffff' : '#666666', 13, 'left', 'monospace', true);
